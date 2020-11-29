@@ -5,9 +5,11 @@ import pygame
 pygame.init()
 pygame.mixer.init()
 cap = cv.VideoCapture(0)
-soundEffect=pygame.mixer.Sound('Eating.wav')
-
-
+saberMag=None
+calibrated=False
+H=[]
+S=[]
+V=[]
 def nothing(x):
     pass
 def distance(x0,y0,x1,y1):
@@ -20,39 +22,96 @@ def get2DAngle(saberVector):
     v=np.array([1,0])
     angle=math.acos(np.dot(saberVector,v)/(np.linalg.norm(saberVector)*np.linalg.norm(v)))
     angle=math.degrees(angle)
-
     return (int(angle))
     
-#cv.namedWindow('slider')
+
 hMin,hMax,sMin,sMax,vMin,vMax=85,147,130,253,63,255
-# cv.createTrackbar('hMin', 'slider',0,179,nothing)
-# cv.createTrackbar('sMin', 'slider',0,255,nothing)
-# cv.createTrackbar('vMin', 'slider',0,255,nothing)
-# cv.createTrackbar('hMax', 'slider',0,179,nothing)
-# cv.createTrackbar('sMax', 'slider',0,255,nothing)
-# cv.createTrackbar('vMax', 'slider',0,255,nothing)
-#cv.createTrackbar('minLine', 'slider',0,255,nothing)
-#cv.createTrackbar('blobArea', 'slider',0,2000,nothing)
+def getValueOnClick(event,x,y,flags,hsv):
+    if event == cv.EVENT_LBUTTONDOWN:
+        print(y,x)
+        HSVval=(hsv[y][x])
+        H.append(HSVval[0])
+        S.append(HSVval[1])
+        V.append(HSVval[2])
+
+def calibrateSaberClick():
+    justClicked=False
+    while len(H)<4:
+        _, frame = cap.read()
+        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        hsv=cv.medianBlur(hsv,11)
+        frame=cv.flip(frame, 1)
+        hsv=cv.flip(hsv,1)
+        cv.setMouseCallback('calibration screen',getValueOnClick,hsv)
+        cv.imshow('calibration screen',hsv)
+        if cv.waitKey(20) & 0xFF == 27:
+            break
+
+        if len(H)>4: 
+            break   
+    minVal=[min(H), min(S), min(V)]
+    maxVal=[max(H),max(S),max(V)]
+    cv.destroyWindow('calibration screen')
+    return minVal,maxVal
+
+def calibrateSaberSlide(defaultMin,defaultMax):
+    calibrated=False
+    cv.namedWindow('sliders')
+    cv.createTrackbar('hMin', 'sliders',defaultMin[0],179,nothing)
+    cv.createTrackbar('sMin', 'sliders',defaultMin[1],255,nothing)
+    cv.createTrackbar('vMin', 'sliders',defaultMin[2],255,nothing)
+    cv.createTrackbar('hMax', 'sliders',defaultMax[0],179,nothing)
+    cv.createTrackbar('sMax', 'sliders',defaultMax[1],255,nothing)
+    cv.createTrackbar('vMax', 'sliders',defaultMax[2],255,nothing)
+    while(not calibrated):
+        _, frame = cap.read()
+        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        hsv=cv.medianBlur(hsv,11)
+        hMin = cv.getTrackbarPos('hMin','sliders')
+        sMin = cv.getTrackbarPos('sMin','sliders')
+        vMin = cv.getTrackbarPos('vMin','sliders') 
+        hMax = cv.getTrackbarPos('hMax','sliders')
+        sMax = cv.getTrackbarPos('sMax','sliders')
+        vMax = cv.getTrackbarPos('vMax','sliders')
+        lower=np.array([hMin,sMin,vMin])
+        upper=np.array([hMax,sMax,vMax])
+
+        mask = cv.inRange(hsv, lower, upper)
+        kernel = np.ones((13,13),np.uint8)
+        mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
+        res = cv.bitwise_and(frame,frame, mask= mask)
+        mask = cv.flip(mask, 1)
+        cv.imshow('mask',mask)
+        k = cv.waitKey(5) & 0xFF
+        if k == 27:
+            calibrated=True
+    cv.destroyWindow('sliders')
+    cv.destroyWindow('mask')
+    
+    return [hMin,sMin,vMin],[hMax,vMax,sMax]
+def calibrateLength():
+    
+calibrated=False
 while(True):
+    if not calibrated:
+        print('calibration started!')
+        minVal,maxVal=calibrateSaberClick()
+        calMin,calMax=calibrateSaberSlide(minVal,maxVal)
+        lowerHSV=np.array(calMin)
+        upperHSV=np.array(calMax)
+        print(lowerHSV,upperHSV)
+        calibrated=True
+
     _, frame = cap.read()
     # Convert BGR to HSV
     hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-    #hsv=cv.GaussianBlur(hsv,(11,11),0)
+
     hsv=cv.medianBlur(hsv,11)
-    lower_blue = np.array([84,125,37])
-    upper_blue = np.array([107,255,255])
-    # hMin = cv.getTrackbarPos('hMin','slider')
-    # sMin = cv.getTrackbarPos('sMin','slider')
-    # vMin = cv.getTrackbarPos('vMin','slider') 
-    # hMax = cv.getTrackbarPos('hMax','slider')
-    # sMax = cv.getTrackbarPos('sMax','slider')
-    # vMax = cv.getTrackbarPos('vMax','slider')
-    lower=np.array([hMin,sMin,vMin])
-    upper=np.array([hMax,sMax,vMax])
+    # lower_blue = np.array([84,125,37])
+    # upper_blue = np.array([107,255,255])
 
-    mask = cv.inRange(hsv, lower_blue, upper_blue)
-
-    #denoise the mask, and dilate it a bit w/morphologiclal transforms https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
+    mask = cv.inRange(hsv, lowerHSV, upperHSV)
+    
     kernel = np.ones((13,13),np.uint8)
     mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
     # mask=cv.dilate(mask,kernel, iterations=1)
@@ -66,6 +125,7 @@ while(True):
     #identify saber w/ contour detection
     
     contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    
     if len(contours)>0:
         #next 4 lines from here:# https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
         rect = cv.minAreaRect(contours[0])
@@ -88,16 +148,14 @@ while(True):
             saberWidth=saberLength1
             saberVector=np.array([x2-x1,y2-y1])
             angle=get2DAngle(saberVector)
-        #display the saber length onto the result
-        if(angle==90 and not pygame.mixer.Channel(1).get_busy()):
-            #pygame.mixer.Channel(1).play(soundEffect)0
-            pass
+        
+
         font=cv.FONT_HERSHEY_SIMPLEX
         cv.putText(res,f'length={saberLength},angle: {angle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
         
     else:
-        print('saber not found')
-    
+        pass
+        #print('saber not found')
     
     cv.imshow('frame',frame) 
     cv.imshow('mask',mask)
@@ -108,6 +166,8 @@ while(True):
         break
 cv.destroyAllWindows()
 
+
+    
 
 #previously used code for figuring out best way to mask
 

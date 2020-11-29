@@ -7,12 +7,12 @@ def nothing(x):
     
 cv.namedWindow('slider')
 hMin,hMax,sMin,sMax,vMin,vMax=85,147,130,253,63,255
-cv.createTrackbar('hMin', 'slider',0,179,nothing)
-cv.createTrackbar('sMin', 'slider',0,255,nothing)
-cv.createTrackbar('vMin', 'slider',0,255,nothing)
-cv.createTrackbar('hMax', 'slider',0,179,nothing)
-cv.createTrackbar('sMax', 'slider',0,255,nothing)
-cv.createTrackbar('vMax', 'slider',0,255,nothing)
+cv.createTrackbar('hMin', 'slider',84,179,nothing)
+cv.createTrackbar('sMin', 'slider',125,255,nothing)
+cv.createTrackbar('vMin', 'slider',37,255,nothing)
+cv.createTrackbar('hMax', 'slider',107,179,nothing)
+cv.createTrackbar('sMax', 'slider',250,255,nothing)
+cv.createTrackbar('vMax', 'slider',250,255,nothing)
 
 while(True):
     _, frame = cap.read()

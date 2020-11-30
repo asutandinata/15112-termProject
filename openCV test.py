@@ -33,7 +33,6 @@ def get2DAngle(saberVector):
     return (int(angle))
 
 def get3DAngle(x,y):
-
     u=np.array([x,y])
     v=np.array([1,0])
     angle=math.acos(np.dot(u,v)/(np.linalg.norm(u)*np.linalg.norm(v)))
@@ -146,94 +145,160 @@ def calibrateLength(minVal, maxVal):
         cv.imshow('mask', mask)
     cv.destroyWindow('mask')
     return sum(saberSizes)/len(saberSizes)
+def getMidpoint(x0,y0,x1,y1):
+    cx=(x0+x1)/2
+    cy=(y0+y1)/2
+    return(cx,cy)
 
-calibrated=False
-while(True):
-    if not calibrated:
-        print('calibration started!')
-        minVal,maxVal=calibrateSaberClick()
-        calMin,calMax=calibrateSaberSlide(minVal,maxVal)
-        lowerHSV=np.array(calMin)
-        upperHSV=np.array(calMax)
-        trueSaberLength=calibrateLength(lowerHSV,upperHSV)
-        print(lowerHSV,upperHSV)
-        calibrated=True
+#general function, acts as 'main' for the cv loop
+def generalTracking():
+    calibrated=False
+    centers=[]
+    XY=[]
+    YZ=[]
+    XZ=[]
+    while(True):
+        if not calibrated:
+            print('calibration started!')
+            minVal,maxVal=calibrateSaberClick()
+            calMin,calMax=calibrateSaberSlide(minVal,maxVal)
+            lowerHSV=np.array(calMin)
+            upperHSV=np.array(calMax)
+            trueSaberLength=calibrateLength(lowerHSV,upperHSV)
+            print(lowerHSV,upperHSV)
+            calibrated=True
 
-    _, frame = cap.read()
-    # Convert BGR to HSV
-    hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        _, frame = cap.read()
+        # Convert BGR to HSV
+        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
 
-    hsv=cv.medianBlur(hsv,11)
-    # lower_blue = np.array([84,125,37])
-    # upper_blue = np.array([107,255,255])
+        hsv=cv.medianBlur(hsv,11)
+        # lower_blue = np.array([84,125,37])
+        # upper_blue = np.array([107,255,255])
 
-    mask = cv.inRange(hsv, lowerHSV, upperHSV)
-    
-    kernel = np.ones((13,13),np.uint8)
-    mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
-    # mask=cv.dilate(mask,kernel, iterations=1)
-
-    #flip each image vertically
-    res = cv.bitwise_and(frame,frame, mask= mask)#overlay boolean mask onto frame
-    frame=cv.flip(frame, 1)
-    mask = cv.flip(mask, 1)
-    res=cv.flip(res,1)
-
-    #identify saber w/ contour detection
-    
-    contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-    
-    if len(contours)>0:
-        #next 4 lines from here:# https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
-        rect = cv.minAreaRect(contours[0])
-        box = cv.boxPoints(rect)
-        box = np.int0(box)
-        cv.drawContours(res,[box],0,(0,0,255),2)
-
-        x0,y0=box[0]
-        x1,y1=box[1]
-        x2,y2=box[2]
-        saberLength1=distance(x0,y0,x1,y1)
-        saberLength2=distance(x1,y1,x2,y2)
-        if(saberLength1>saberLength2):
-            saberLength=saberLength1
-            saberWidth=saberLength2
-            saberVector2D=np.array([x1-x0,y1-y0])
-        else:
-            saberLength=saberLength2
-            saberWidth=saberLength1
-            saberVector2D=np.array([x2-x1,y2-y1])
-        #determine rest of saber characteristics    
-        xyAngle=get2DAngle(saberVector2D)
-        z=getZVector(saberVector2D,trueSaberLength)
-        saberVector=np.array([saberVector2D[0],saberVector2D[1],z])#[x,y,z]
-        #print(saberVector, trueSaberLength)
-        yzAngle=get3DAngle(saberVector[1],saberVector[2])#direction vertically(swinging up and down)
-        xzAngle=get3DAngle(saberVector[0],saberVector[2])#direction horizontally(swinging left and right)
-        print(f'pitch: {yzAngle}, yaw: {xzAngle}, plane angle: {xyAngle}')
-        #display fonts
-        font=cv.FONT_HERSHEY_SIMPLEX
-        #cv.putText(res,f'length={saberLength},angle: {angle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+        mask = cv.inRange(hsv, lowerHSV, upperHSV)
         
-    else:
-        pass
-        #print('saber not found')
-    
-    cv.imshow('frame',frame) 
-    cv.imshow('mask',mask)
-    cv.imshow('result', res)
+        kernel = np.ones((13,13),np.uint8)
+        mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
+        # mask=cv.dilate(mask,kernel, iterations=1)
 
-    k = cv.waitKey(5) & 0xFF
-    if k == 27:
-        break
-cv.destroyAllWindows()
+        #flip each image vertically
+        res = cv.bitwise_and(frame,frame, mask= mask)#overlay boolean mask onto frame
+        frame=cv.flip(frame, 1)
+        mask = cv.flip(mask, 1)
+        res=cv.flip(res,1)
 
-def testSwings(pastXY,pastYZ,pastXZ):
+        #identify saber w/ contour detection
+        
+        contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        
+        if len(contours)>0:
+            #next 7 lines from here:# https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
+            rect = cv.minAreaRect(contours[0])
+            box = cv.boxPoints(rect)
+            box = np.int0(box)
+            cv.drawContours(res,[box],0,(0,0,255),2)
+            # M=cv.moments(contours[0])
+            # cx = int(M['m10']/M['m00'])
+            # cy = int(M['m01']/M['m00'])
+
+            x0,y0=box[0]
+            x1,y1=box[1]
+            x2,y2=box[2]
+            x3,y3=box[3]
+            minX=min(x0,x1,x2,x3)
+            maxX=max(x0,x1,x2,x3)
+            minY=min(y0,y1,y2,y3)
+            maxY=max(y0,y1,y2,y3)
+            cx,cy=getMidpoint(minX,minY,maxX,maxY)
+
+            saberLength1=distance(x0,y0,x1,y1)
+            saberLength2=distance(x1,y1,x2,y2)
+            if(saberLength1>saberLength2):
+                saberLength=saberLength1
+                saberWidth=saberLength2
+                saberVector2D=np.array([x1-x0,y1-y0])
+            else:
+                saberLength=saberLength2
+                saberWidth=saberLength1
+                saberVector2D=np.array([x2-x1,y2-y1])
+
+            #determine rest of saber characteristics   
+
+            centers.append((cx,cy,saberLength)) 
+            xyAngle=get2DAngle(saberVector2D)
+            z=getZVector(saberVector2D,trueSaberLength)
+            saberVector=np.array([saberVector2D[0],saberVector2D[1],z])#[x,y,z]
+            yzAngle=get3DAngle(saberVector[1],saberVector[2])#direction vertically(swinging up and down)
+            xzAngle=get3DAngle(saberVector[0],saberVector[2])#direction horizontally(swinging left and right)
+            XY.append(xyAngle)
+            YZ.append(yzAngle)
+            XZ.append(xzAngle)
+            #print(f'pitch: {yzAngle}, yaw: {xzAngle}, plane angle: {xyAngle}')
+            print(cx,cy)
+            #display fonts
+            font=cv.FONT_HERSHEY_SIMPLEX
+            #cv.putText(res,f'length={saberLength},angle: {angle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+            inSwing=isSwinging(centers)
+            if inSwing:print('swinging!')
+            if inSwing:
+                pass
+                #getSwingDirection():
+
+        else:
+            pass
+            #print('saber not found')
+        
+        cv.imshow('frame',frame) 
+        cv.imshow('mask',mask)
+        cv.imshow('result', res)
+
+        k = cv.waitKey(5) & 0xFF
+        if k == 27:
+            break
+    cv.destroyAllWindows()
+
+def isSwinging(centers):
+    minTime=11
+    if(len(centers)<minTime):
+        return False
+    shortenedCenters=centers[-minTime:]
+    for i in range(len(shortenedCenters)-2):
+        x0,y0,len0=shortenedCenters[0]
+        x1,y1,len1=shortenedCenters[1]
+        #if saber stays same length or entire movement is parallel, then it's not a swing!
+        if abs(len0-len1)<5 or distance(x0,y0,x1,y1)<10:
+            return False
+    #a swing is happening!
+    return True
+
+def testSwings(XY,YZ,XZ, length):
+    #THE CHANGE IN SABER CENTER INDICATES A SWING HAS BEGUN
+    #THE ANGLES ARE THEN USED TO CHECK IF A SWING IS VALID
+    #although it could all be done through looking at centers, analyzing the saber's angles will ensure a swing is proper and not just a translation
+    minTime=11
+    shortenedXY=XY[-minTime:]
+    shortenedYZ=YZ[-minTime:]
+    shortenedXZ=XZ[-minTime:]
     #in a swing, xy angle will remain approximately the same
     #yz angle and xz angles will change, peaking 
-    pass
+    
+    #we can store the past angle values as a tuple, with first value being angle and second value beiong length
+    #we also store the past few centers of the saber
+
+    #a full swing will have similar lengths at the beginning and en
     
 
+    #vertical swing:
+
+    #horizontal swing:
+
+    #diagonal swings:
+
+
+    pass
+    
+generalTracking()
 #previously used code for figuring out best way to mask
 
     #do some blob detection based on the mask, minimum area

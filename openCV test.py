@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 import math
 import pygame
+import time
 pygame.init()
 pygame.mixer.init()
 cap = cv.VideoCapture(0)
@@ -22,6 +23,7 @@ def distance(x0,y0,x1,y1):
 def getZVector(saberVector, trueMag):
     vecSquared=trueMag**2-(saberVector[0])**2-(saberVector[1])**2
     if(vecSquared<0):
+
         return 0
     else:
         return math.sqrt(vecSquared)
@@ -39,7 +41,7 @@ def get3DAngle(x,y):
     angle=math.degrees(angle)
     return (angle)
 
-hMin,hMax,sMin,sMax,vMin,vMax=85,147,130,253,63,255
+#hMin,hMax,sMin,sMax,vMin,vMax=85,147,130,253,63,255
 def getValueOnClick(event,x,y,flags,hsv):
     if event == cv.EVENT_LBUTTONDOWN:
         print(y,x)
@@ -103,11 +105,15 @@ def calibrateSaberSlide(defaultMin,defaultMax):
     cv.destroyWindow('mask')
     
     return [hMin,sMin,vMin],[hMax,vMax,sMax]
-def stDev(data, mean):
+def stDev(data):
+    mean=average(data)
     tempSum=0
     for val in data:
         tempSum+=(val-mean)**2
     return math.sqrt(tempSum/(len(data)-1))
+
+def average(lst):
+    return sum(lst)/len(lst)
 
 def calibrateLength(minVal, maxVal):
     saberSizes=[]
@@ -136,15 +142,14 @@ def calibrateLength(minVal, maxVal):
             saberLength=max(distance(x0,y0,x1,y1),distance(x1,y1,x2,y2))
             saberSizes.append(saberLength)
         if(len(saberSizes)>25):
-            average=sum(saberSizes)/len(saberSizes)
-            dataError=stDev(saberSizes, average)
+            dataError=stDev(saberSizes)
             if(dataError<error):
                 sizeCalibrated=True
             else:
                 saberSizes=[]
         cv.imshow('mask', mask)
     cv.destroyWindow('mask')
-    return sum(saberSizes)/len(saberSizes)
+    return average(saberSizes)
 def getMidpoint(x0,y0,x1,y1):
     cx=(x0+x1)/2
     cy=(y0+y1)/2
@@ -167,7 +172,7 @@ def generalTracking():
             trueSaberLength=calibrateLength(lowerHSV,upperHSV)
             print(lowerHSV,upperHSV)
             calibrated=True
-
+        startTime=time.time()
         _, frame = cap.read()
         # Convert BGR to HSV
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
@@ -189,19 +194,16 @@ def generalTracking():
         res=cv.flip(res,1)
 
         #identify saber w/ contour detection
-        
         contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         
         if len(contours)>0:
-            #next 7 lines from here:# https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
+            #next 4 lines from here:# https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
             rect = cv.minAreaRect(contours[0])
             box = cv.boxPoints(rect)
             box = np.int0(box)
             cv.drawContours(res,[box],0,(0,0,255),2)
-            # M=cv.moments(contours[0])
-            # cx = int(M['m10']/M['m00'])
-            # cy = int(M['m01']/M['m00'])
 
+            #determine the center of the saber
             x0,y0=box[0]
             x1,y1=box[1]
             x2,y2=box[2]
@@ -212,6 +214,7 @@ def generalTracking():
             maxY=max(y0,y1,y2,y3)
             cx,cy=getMidpoint(minX,minY,maxX,maxY)
 
+            #determine length of saber
             saberLength1=distance(x0,y0,x1,y1)
             saberLength2=distance(x1,y1,x2,y2)
             if(saberLength1>saberLength2):
@@ -223,31 +226,29 @@ def generalTracking():
                 saberWidth=saberLength1
                 saberVector2D=np.array([x2-x1,y2-y1])
 
-            #determine rest of saber characteristics   
-
+            #determine saber angles  
             centers.append((cx,cy,saberLength)) 
             xyAngle=get2DAngle(saberVector2D)
             z=getZVector(saberVector2D,trueSaberLength)
             saberVector=np.array([saberVector2D[0],saberVector2D[1],z])#[x,y,z]
             yzAngle=get3DAngle(saberVector[1],saberVector[2])#direction vertically(swinging up and down)
             xzAngle=get3DAngle(saberVector[0],saberVector[2])#direction horizontally(swinging left and right)
+            dt=time.time()-startTime
             XY.append(xyAngle)
             YZ.append(yzAngle)
             XZ.append(xzAngle)
-            #print(f'pitch: {yzAngle}, yaw: {xzAngle}, plane angle: {xyAngle}')
-            print(cx,cy)
-            #display fonts
-            font=cv.FONT_HERSHEY_SIMPLEX
-            #cv.putText(res,f'length={saberLength},angle: {angle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+            
             inSwing=isSwinging(centers)
-            if inSwing:print('swinging!')
             if inSwing:
-                pass
-                #getSwingDirection():
-
-        else:
-            pass
-            #print('saber not found')
+                swing=getSwingDirection(XY,YZ,XZ,centers,dt)
+                if swing!=None:
+                    print(swing)
+            #debugging tools
+            font=cv.FONT_HERSHEY_SIMPLEX
+            #print(cx,cy)
+            #print(f'pitch: {yzAngle}, yaw: {xzAngle}, plane angle: {xyAngle}')
+            #cv.putText(res,f'pitch: {yzAngle}, yaw: {xzAngle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+            cv.putText(res,f'{saberVector}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
         
         cv.imshow('frame',frame) 
         cv.imshow('mask',mask)
@@ -259,7 +260,7 @@ def generalTracking():
     cv.destroyAllWindows()
 
 def isSwinging(centers):
-    minTime=11
+    minTime=5
     if(len(centers)<minTime):
         return False
     shortenedCenters=centers[-minTime:]
@@ -272,29 +273,64 @@ def isSwinging(centers):
     #a swing is happening!
     return True
 
-def testSwings(XY,YZ,XZ, length):
+def getSwingDirection(XY,YZ,XZ,centers,dt):
     #THE CHANGE IN SABER CENTER INDICATES A SWING HAS BEGUN
     #THE ANGLES ARE THEN USED TO CHECK IF A SWING IS VALID
     #although it could all be done through looking at centers, analyzing the saber's angles will ensure a swing is proper and not just a translation
-    minTime=11
+
+    #shorten to the most recent values for the swing
+    minTime=5
     shortenedXY=XY[-minTime:]
     shortenedYZ=YZ[-minTime:]
     shortenedXZ=XZ[-minTime:]
-    #in a swing, xy angle will remain approximately the same
-    #yz angle and xz angles will change, peaking 
+    #dXYdt=(shortenedXY[minTime-1]-shortenedXY[minTime-2])/time
+    dYZdt=abs((shortenedYZ[minTime-1]-shortenedYZ[minTime-2])/dt)
+    dXZdt=abs((shortenedXZ[minTime-1]-shortenedXZ[minTime-2])/dt)
+
+    xySpread=stDev(shortenedXY)
+    yzSpread=stDev(shortenedYZ)
+    xzSpread=stDev(shortenedXZ)
+    x1,y1,l1=centers[-1]
+    x2,y2,l2=centers[-2]
+    dx=x2-x1
+    dy=y2-y1
+    XYangleError=8#maximum error an angle(XY) could have to consider the swing to be valid
+    minMovement=10
+    stDevError=20
+    angleError=10
     
-    #we can store the past angle values as a tuple, with first value being angle and second value beiong length
-    #we also store the past few centers of the saber
+    #using each angle's derivative wrt time, and the standard deviations of the past few 'minTime' values, we find the swing direction
 
-    #a full swing will have similar lengths at the beginning and en
-    
+    if(xySpread<XYangleError):
+        #print(yzSpread,xzSpread, dYZdt,dXZdt)
+        if abs(dx)<10 and abs(dy)>10:
+            if(dy<0):
+                return'swinging down'
+            else:
+                return 'swinging up'
+        elif abs(dy)<10 and abs(dx)>10:
+            if dx>0:
+                return 'swinging right'
+            else:
+                return 'swinging left'
+        elif abs(dYZdt-dXZdt)<5:
+            if dx>0 and dy>0:
+                return 'swinging up right'
+            elif dx>0 and dy<0:
+                return 'swinging down right'
+            elif dx<0 and dy>0:
+                return 'swinging up left'
+            else:
+                return 'swinging down left'
 
-    #vertical swing:
-
-    #horizontal swing:
-
-    #diagonal swings:
-
+    return None
+    #types of swings:
+    #swinging up or down,yz changes alot, xz doesnt change much, massive dyz/dt
+    #swing left or right,yz doesnt change much, xz changes alot, large dxz/dt
+    #swing Up right(NE), yz changes alot, xz changes alot
+    #swing Up left(NW), 
+    #swing down right(SE)
+    #swing down left(SW)
 
     pass
     

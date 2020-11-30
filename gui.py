@@ -1,5 +1,6 @@
 from cmu_112_graphics import *
-import 'openCV test'
+import saberTracker
+
 class button(object):
     def __init__(self, x,y, width,height,text):
         self.cx=x
@@ -27,7 +28,7 @@ def createButtons(app):
     helpButton=button(app.width/2, 3*app.height/4, app.width/2, 0.2*app.height, 'help')
     app.homeButtons=[playButton, calibrateButton, helpButton]
 
-    back=button(app.width/7, app.height/5, 100, 50, 'Back')
+    back=button(55, 30, 100, 50, 'Back')
     easy=button(app.width/2, app.height/5, app.width-150, 0.2*app.height, 'Easy')
     medium=button(app.width/2, 2*app.height/5, app.width-150, 0.2*app.height, 'Medium')
     hard=button(app.width/2, 3*app.height/5, app.width-150, 0.2*app.height, 'Hard')
@@ -53,13 +54,14 @@ def mousePressed(app, event):
             elif button.text=='help':
                 app.displayButtons=app.helpButtons
             elif button.text=='Calibrate Lighting':
-                #calibrate the lighting
+                saberTracker.calibrateSaberClick()
+                saberTracker.calibrateSaberSlide()
                 pass
             elif button.text=='Calibrate Length':
-                #calibrate the length
+                saberTracker.calibrateLength()
                 pass
             elif button.text=='Debug':
-                #debug the stuff
+                saberTracker.generalTracking()
                 pass
 
 def redrawAll(app, canvas):

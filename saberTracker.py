@@ -162,6 +162,8 @@ def generalTracking():
     XY=[]
     YZ=[]
     XZ=[]
+    camWidth  = cap.get(3)
+    camHeight = cap.get(4)
     while(True):
         if not calibrated:
             print('calibration started!')
@@ -220,17 +222,18 @@ def generalTracking():
             if(saberLength1>saberLength2):
                 saberLength=saberLength1
                 saberWidth=saberLength2
-                saberVector2D=np.array([x1-x0,y1-y0])
+                saberVector2D=np.array([x1-x0,y0-y1])
             else:
                 saberLength=saberLength2
                 saberWidth=saberLength1
-                saberVector2D=np.array([x2-x1,y2-y1])
+                saberVector2D=np.array([x2-x1,y1-y2])
 
             #determine saber angles  
+
             centers.append((cx,cy,saberLength)) 
             xyAngle=get2DAngle(saberVector2D)
             z=getZVector(saberVector2D,trueSaberLength)
-            saberVector=np.array([saberVector2D[0],saberVector2D[1],z])#[x,y,z]
+            saberVector=np.array([int(saberVector2D[0]),int(saberVector2D[1]),int(z)])#[x,y,z]
             yzAngle=get3DAngle(saberVector[1],saberVector[2])#direction vertically(swinging up and down)
             xzAngle=get3DAngle(saberVector[0],saberVector[2])#direction horizontally(swinging left and right)
             dt=time.time()-startTime
@@ -243,12 +246,13 @@ def generalTracking():
                 swing=getSwingDirection(XY,YZ,XZ,centers,dt)
                 if swing!=None:
                     print(swing)
+                    pass
             #debugging tools
             font=cv.FONT_HERSHEY_SIMPLEX
             #print(cx,cy)
             #print(f'pitch: {yzAngle}, yaw: {xzAngle}, plane angle: {xyAngle}')
-            #cv.putText(res,f'pitch: {yzAngle}, yaw: {xzAngle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
-            cv.putText(res,f'{saberVector}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+            #cv.putText(res,f'pitch: {int(yzAngle)}, yaw: {int(xzAngle)}, roll:{int(xyAngle)}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+            #cv.putText(res,f'{saberVector}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
         
         cv.imshow('frame',frame) 
         cv.imshow('mask',mask)
@@ -290,11 +294,11 @@ def getSwingDirection(XY,YZ,XZ,centers,dt):
     xySpread=stDev(shortenedXY)
     yzSpread=stDev(shortenedYZ)
     xzSpread=stDev(shortenedXZ)
-    x1,y1,l1=centers[-1]
-    x2,y2,l2=centers[-2]
+    x1,y1,l1=centers[-2]
+    x2,y2,l2=centers[-1]
     dx=x2-x1
     dy=y2-y1
-    XYangleError=8#maximum error an angle(XY) could have to consider the swing to be valid
+    XYangleError=12#maximum error an angle(XY) could have to consider the swing to be valid
     minMovement=10
     stDevError=20
     angleError=10
@@ -303,17 +307,17 @@ def getSwingDirection(XY,YZ,XZ,centers,dt):
 
     if(xySpread<XYangleError):
         #print(yzSpread,xzSpread, dYZdt,dXZdt)
-        if abs(dx)<10 and abs(dy)>10:
-            if(dy<0):
+        if abs(dx)<10 and abs(yzSpread)>10:
+            if(dy>0):
                 return'swinging down'
             else:
                 return 'swinging up'
-        elif abs(dy)<10 and abs(dx)>10:
+        elif abs(dy)<10 and abs(xzSpread)>8:
             if dx>0:
                 return 'swinging right'
             else:
                 return 'swinging left'
-        elif abs(dYZdt-dXZdt)<5:
+        else:
             if dx>0 and dy>0:
                 return 'swinging up right'
             elif dx>0 and dy<0:

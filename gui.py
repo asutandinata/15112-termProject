@@ -1,5 +1,7 @@
 from cmu_112_graphics import *
 import saberTracker
+import numpy as np
+import time
 
 class button(object):
     def __init__(self, x,y, width,height,text):
@@ -20,6 +22,17 @@ def appStarted(app):
     app.helpButtons=[]
     createButtons(app)
     app.displayButtons=app.homeButtons
+    app.heading='Welcome to cheapsaber!'
+
+    #errors:
+    app.showError=False
+    app.errorText=''
+    #cv variables 
+    app.lowerHSV=None
+    app.upperHSV=None
+    app.calibrated=False
+    app.trueSaberLength=0
+
 
     
 def createButtons(app):
@@ -47,24 +60,34 @@ def mousePressed(app, event):
             and event.y>(button.cy-button.height/2) and event.y<(button.cy+button.height/2)):
             if button.text=='Back':
                 app.displayButtons=app.homeButtons
+                app.heading='Welcome to cheapsaber!'
+                app.showError=False
+                app.error=''
             elif button.text=='play a song':
                 app.displayButtons=app.levelButtons
+                app.heading='Select a level'
+                if(not app.calibrated):
+                    app.showError=True
+                    app.errorText='You have not calibrated!\n Please go back and calibrate your saber'
             elif button.text=='Calibrate your sabers':
                 app.displayButtons=app.calibrateButtons
+                app.heading='calibrate your saber'
             elif button.text=='help':
                 app.displayButtons=app.helpButtons
+                app.heading='Help Screen'
             elif button.text=='Calibrate Lighting':
-                saberTracker.calibrateSaberClick()
-                saberTracker.calibrateSaberSlide()
-                pass
+                app.lowerHSV,app.upperHSV=saberTracker.calibrateLighting()
             elif button.text=='Calibrate Length':
-                saberTracker.calibrateLength()
-                pass
+                app.trueSaberLength=saberTracker.calibrateLength(app.lowerHSV, app.upperHSV)
+                app.calibrated=True
             elif button.text=='Debug':
-                saberTracker.generalTracking()
-                pass
+                if app.calibrated:
+                    saberTracker.generalTracking(app.lowerHSV, app.upperHSV, app.trueSaberLength)
+                else:
+                    pass
 
 def redrawAll(app, canvas):
+    canvas.create_text(app.width/2, 15,text=app.heading, fill='black', font='arial 18 bold')
     for button in app.displayButtons:
         cx=button.cx
         cy=button.cy
@@ -73,5 +96,8 @@ def redrawAll(app, canvas):
         text=button.text
         canvas.create_rectangle(cx-width/2, cy-height/2, cx+width/2, cy+height/2,fill='yellow')
         canvas.create_text(cx, cy, text=text, fill='black', font='arial 12 bold')
-
+    if app.showError:
+        margin=20
+        canvas.create_rectangle(margin, margin, app.width-margin, app.height-margin,fill='red')
+        canvas.create_text(app.width/2, app.height/2, text=app.errorText, fill='black', font='arial 20 bold')
 runApp(width=800, height=400)

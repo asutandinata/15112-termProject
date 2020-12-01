@@ -7,7 +7,6 @@ pygame.init()
 pygame.mixer.init()
 cap = cv.VideoCapture(0)
 
-saberMag=None
 calibrated=False
 H=[]
 S=[]
@@ -129,7 +128,7 @@ def calibrateLength(minVal, maxVal):
         mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
         cv.putText(mask,f'now we will be calibrating saber length',(100,10), font, 0.5,(255,255,255),2,cv.LINE_AA)
         contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-        
+        cv.imshow('mask', mask)
         if len(contours)>0:# a contour is detected
             #contour detection
             rect = cv.minAreaRect(contours[0])
@@ -147,42 +146,45 @@ def calibrateLength(minVal, maxVal):
                 sizeCalibrated=True
             else:
                 saberSizes=[]
-        cv.imshow('mask', mask)
+        
     cv.destroyWindow('mask')
     return average(saberSizes)
+
 def getMidpoint(x0,y0,x1,y1):
     cx=(x0+x1)/2
     cy=(y0+y1)/2
     return(cx,cy)
+def calibrateLighting():
+    minVal,maxVal=calibrateSaberClick()
+    calMin,calMax=calibrateSaberSlide(minVal,maxVal)
+    lowerHSV=np.array(calMin)
+    upperHSV=np.array(calMax)
+    return lowerHSV, upperHSV
 
 #general function, acts as 'main' for the cv loop
-def generalTracking():
+def generalTracking(lowerHSV, upperHSV, trueSaberLength):
     calibrated=False
+    # lower_blue = np.array([62,91,82])
+    # upper_blue = np.array([123,255,255])
+    # trueSaberLength=calibrateLength(lower_blue,upper_blue)
     centers=[]
     XY=[]
     YZ=[]
     XZ=[]
     camWidth  = cap.get(3)
     camHeight = cap.get(4)
+    cxPrev=0
+    cyPrev=0
     while(True):
-        if not calibrated:
-            print('calibration started!')
-            minVal,maxVal=calibrateSaberClick()
-            calMin,calMax=calibrateSaberSlide(minVal,maxVal)
-            lowerHSV=np.array(calMin)
-            upperHSV=np.array(calMax)
-            trueSaberLength=calibrateLength(lowerHSV,upperHSV)
-            print(lowerHSV,upperHSV)
-            calibrated=True
+    
         startTime=time.time()
         _, frame = cap.read()
         # Convert BGR to HSV
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
 
         hsv=cv.medianBlur(hsv,11)
-        # lower_blue = np.array([84,125,37])
-        # upper_blue = np.array([107,255,255])
 
+        #mask = cv.inRange(hsv, lower_blue, upper_blue)
         mask = cv.inRange(hsv, lowerHSV, upperHSV)
         
         kernel = np.ones((13,13),np.uint8)
@@ -251,8 +253,11 @@ def generalTracking():
             font=cv.FONT_HERSHEY_SIMPLEX
             #print(cx,cy)
             #print(f'pitch: {yzAngle}, yaw: {xzAngle}, plane angle: {xyAngle}')
-            #cv.putText(res,f'pitch: {int(yzAngle)}, yaw: {int(xzAngle)}, roll:{int(xyAngle)}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+            #cv.putText(res,f'dx: {cx-cxPrev}, dy: {cy-cyPrev}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+            cv.putText(res,f'pitch: {yzAngle}, yaw: {xzAngle}, roll:{xyAngle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
             #cv.putText(res,f'{saberVector}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+            cxPrev=cx
+            cyPrev=cy
         
         cv.imshow('frame',frame) 
         cv.imshow('mask',mask)
@@ -283,7 +288,7 @@ def getSwingDirection(XY,YZ,XZ,centers,dt):
     #although it could all be done through looking at centers, analyzing the saber's angles will ensure a swing is proper and not just a translation
 
     #shorten to the most recent values for the swing
-    minTime=5
+    minTime=3
     shortenedXY=XY[-minTime:]
     shortenedYZ=YZ[-minTime:]
     shortenedXZ=XZ[-minTime:]
@@ -294,37 +299,39 @@ def getSwingDirection(XY,YZ,XZ,centers,dt):
     xySpread=stDev(shortenedXY)
     yzSpread=stDev(shortenedYZ)
     xzSpread=stDev(shortenedXZ)
-    x1,y1,l1=centers[-2]
-    x2,y2,l2=centers[-1]
+    x1,y1,l1=centers[-2]#second most recent
+    x2,y2,l2=centers[-1]#most recent value
     dx=x2-x1
     dy=y2-y1
-    XYangleError=12#maximum error an angle(XY) could have to consider the swing to be valid
+    dl=l2-l1
+    XYangleError=8#maximum error an angle(XY) could have to consider the swing to be valid
     minMovement=10
     stDevError=20
     angleError=10
     
     #using each angle's derivative wrt time, and the standard deviations of the past few 'minTime' values, we find the swing direction
 
-    if(xySpread<XYangleError):
+    if(xySpread<XYangleError) and (abs(dl)>10) and (dYZdt>5 or  dXZdt>5):
+        #print(dx,dy)
         #print(yzSpread,xzSpread, dYZdt,dXZdt)
-        if abs(dx)<10 and abs(yzSpread)>10:
-            if(dy>0):
-                return'swinging down'
+        if (dYZdt>10 and xzSpread<10) or (abs(dy)>15 and abs(dx)<12):
+            if(dy<0):
+                return'swinging up'
             else:
-                return 'swinging up'
-        elif abs(dy)<10 and abs(xzSpread)>8:
+                return 'swinging down'
+        elif (dXZdt>10 and dYZdt<10) or (abs(dx)>15 and abs(dy)<12):
             if dx>0:
                 return 'swinging right'
             else:
                 return 'swinging left'
-        else:
-            if dx>0 and dy>0:
+        elif abs(abs(dx)-abs(dy))<30 and abs(dx)>6 and abs(dy)>6:
+            if dx>0 and dy<0:
                 return 'swinging up right'
             elif dx>0 and dy<0:
-                return 'swinging down right'
+                return 'swinging up right'
             elif dx<0 and dy>0:
-                return 'swinging up left'
-            else:
+                return 'swinging down left'
+            elif dx<0 and dy>0:
                 return 'swinging down left'
 
     return None
@@ -338,7 +345,7 @@ def getSwingDirection(XY,YZ,XZ,centers,dt):
 
     pass
     
-generalTracking()
+#generalTracking()
 #previously used code for figuring out best way to mask
 
     #do some blob detection based on the mask, minimum area

@@ -41,7 +41,27 @@ def appStarted(app):
     app.noteVisibility=10#how many notes into the future you can see
     app.score=0
     app.combo=0
+    app.inGame=False
     
+    #note drawing variables:
+    determineNoteGrid(app)
+
+def determineNoteGrid(app):
+    gridWidth=app.height//3
+    gridHeight=gridWidth
+    app.gridCenters=dict()
+    app.gridCenters['00']=(app.width/2-gridWidth,app.height/2-gridHeight)
+    app.gridCenters['01']=(app.width/2,app.height/2-gridHeight)
+    app.gridCenters['02']=(app.width/2+gridWidth,app.height/2-gridHeight)
+    app.gridCenters['10']=(app.width/2-gridWidth,app.height/2)
+    app.gridCenters['11']=(app.width/2,app.height/2)
+    app.gridCenters['12']=(app.width/2+gridWidth,app.height/2)
+    app.gridCenters['20']=(app.width/2-gridWidth,app.height/2+gridHeight)
+    app.gridCenters['21']=(app.width/2,app.height/2+gridHeight)
+    app.gridCenters['22']=(app.width/2+gridWidth,app.height/2+gridHeight)
+    app.noteSize=gridWidth
+
+
 def createButtons(app):
     playButton=button(app.width/2, app.height/4, app.width/2, 0.2*app.height, 'play a song')
     calibrateButton=button(app.width/2, app.height/2, app.width/2, 0.2*app.height, 'Calibrate your sabers')
@@ -96,36 +116,79 @@ def mousePressed(app, event):
                 app.levelMap=mapGeneration.generateMap(500, 8,False)
                 app.noteSpeed=5
                 app.noteVisibility=10
+                app.inGame=True
+                
             elif button.text=='Medium':
-                app.levelMap=mapGeneration.generateMap(750, 8,True,4)
+                app.levelMap=mapGeneration.generateMap(250, 8,True,10)
                 app.noteSpeed=7
                 app.noteVisibility=10
+                app.inGame=True
+                
             elif button.text=='Hard':
-                app.levelMap=mapGeneration.generateMap(1000, 6,True,5)
+                app.levelMap=mapGeneration.generateMap(1000, 6,True,10)
                 app.noteSpeed=8
                 app.noteVisibility=10
+                app.inGame=True
+                
             elif button.text=='Expert':
-                app.levelMap=mapGeneration.generateMap(1250, 4,True,3)
+                app.levelMap=mapGeneration.generateMap(1250, 4,True,9)
                 app.noteSpeed=10
                 app.noteVisibility=20
+                app.inGame=True
+                
+
 def timerFired(app):
-    pass
-def beginGame(app):
-    #do somethigng with saberTracker to track the notes coming in where we get the current x and y of the rectangle saber
+    app.timerDelay=10*(11-app.noteSpeed)+50
+    if app.inGame:
+        app.levelMap=app.levelMap[1:]
+        if len(app.levelMap)==0:
+            app.inGame=False
 
 
+def drawNotes(app, canvas):
+    visibleNotes=app.levelMap[0:app.noteVisibility]
+    notesSeen=len(visibleNotes)
+    for i in range (notesSeen):
+        value=visibleNotes[i]
+        if value!=None:
+            row,col,direction=value
+            sizeRatio=((notesSeen-i)/notesSeen)
+            size=app.noteSize*sizeRatio
+            pos=str(row)+str(col)
+            x,y=app.gridCenters[pos]
+            dx=x-app.width/2
+            cx=app.width/2+dx*sizeRatio
+            dy=y-app.height/2
+            cy=app.height/2+dy*sizeRatio
+            if direction==-1:
+                canvas.create_oval(cx-size/2, cy-size/2,cx+size/2,cy+size/2, fill='gray')
+            else:
+                canvas.create_rectangle(cx-size/2, cy-size/2,cx+size/2,cy+size/2, fill='blue',outline='black')
+                canvas.create_text(cx,cy,text='^', font=f'arial {int(size/2)}',angle=int(direction)+180, fill='white')
+                
+        
 def redrawAll(app, canvas):
-    canvas.create_text(app.width/2, 15,text=app.heading, fill='black', font='arial 18 bold')
-    for button in app.displayButtons:
-        cx=button.cx
-        cy=button.cy
-        width=button.width
-        height=button.height
-        text=button.text
-        canvas.create_rectangle(cx-width/2, cy-height/2, cx+width/2, cy+height/2,fill='yellow')
-        canvas.create_text(cx, cy, text=text, fill='black', font='arial 12 bold')
-    if app.showError:
-        margin=20
-        canvas.create_rectangle(margin, margin, app.width-margin, app.height-margin,fill='red')
-        canvas.create_text(app.width/2, app.height/2, text=app.errorText, fill='black', font='arial 20 bold')
-runApp(width=800, height=400)
+    if not app.inGame:
+        canvas.create_text(app.width/2, 15,text=app.heading, fill='black', font='arial 18 bold')
+        for button in app.displayButtons:
+            cx=button.cx
+            cy=button.cy
+            width=button.width
+            height=button.height
+            text=button.text
+            canvas.create_rectangle(cx-width/2, cy-height/2, cx+width/2, cy+height/2,fill='yellow')
+            canvas.create_text(cx, cy, text=text, fill='black', font='arial 12 bold')
+        if app.showError:
+            margin=20
+            canvas.create_rectangle(margin, margin, app.width-margin, app.height-margin,fill='red')
+            canvas.create_text(app.width/2, app.height/2, text=app.errorText, fill='black', font='arial 20 bold')
+    else:
+        #create backdrop and stuff
+        canvas.create_rectangle(0,0,app.width,app.height,fill='black')
+        smallGap=100
+        bigGap=500
+        topOffset=app.height/2
+        canvas.create_line(app.width/2-smallGap, topOffset, app.width/2-bigGap, app.height, fill='cyan',width=5)
+        canvas.create_line(app.width/2+smallGap, topOffset, app.width/2+bigGap, app.height, fill='cyan',width=5)
+        drawNotes(app, canvas)
+runApp(width=1280, height=960)

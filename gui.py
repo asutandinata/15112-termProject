@@ -36,7 +36,11 @@ def appStarted(app):
     app.trueSaberLength=0
 
     #map variables:
-    app.frameSpeed=0
+    app.levelMap=[]
+    app.noteSpeed=0
+    app.noteVisibility=10#how many notes into the future you can see
+    app.score=0
+    app.combo=0
     
 def createButtons(app):
     playButton=button(app.width/2, app.height/4, app.width/2, 0.2*app.height, 'play a song')
@@ -88,6 +92,27 @@ def mousePressed(app, event):
                     saberTracker.generalTracking(app.lowerHSV, app.upperHSV, app.trueSaberLength)
                 else:
                     pass
+            elif button.text=='Easy':
+                app.levelMap=mapGeneration.generateMap(500, 8,False)
+                app.noteSpeed=5
+                app.noteVisibility=10
+            elif button.text=='Medium':
+                app.levelMap=mapGeneration.generateMap(750, 8,True,4)
+                app.noteSpeed=7
+                app.noteVisibility=10
+            elif button.text=='Hard':
+                app.levelMap=mapGeneration.generateMap(1000, 6,True,5)
+                app.noteSpeed=8
+                app.noteVisibility=10
+            elif button.text=='Expert':
+                app.levelMap=mapGeneration.generateMap(1250, 4,True,3)
+                app.noteSpeed=10
+                app.noteVisibility=20
+def timerFired(app):
+    pass
+def beginGame(app):
+    #do somethigng with saberTracker to track the notes coming in where we get the current x and y of the rectangle saber
+
 
 def redrawAll(app, canvas):
     canvas.create_text(app.width/2, 15,text=app.heading, fill='black', font='arial 18 bold')

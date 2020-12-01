@@ -22,7 +22,6 @@ def distance(x0,y0,x1,y1):
 def getZVector(saberVector, trueMag):
     vecSquared=trueMag**2-(saberVector[0])**2-(saberVector[1])**2
     if(vecSquared<0):
-
         return 0
     else:
         return math.sqrt(vecSquared)
@@ -61,7 +60,6 @@ def calibrateSaberClick():
         cv.imshow('calibration screen',hsv)
         if cv.waitKey(20) & 0xFF == 27:
             break
-
         if len(H)>4: 
             break   
     minVal=[min(H), min(S), min(V)]
@@ -75,7 +73,7 @@ def calibrateSaberSlide(defaultMin,defaultMax):
     cv.createTrackbar('hMin', 'sliders',defaultMin[0],179,nothing)
     cv.createTrackbar('sMin', 'sliders',defaultMin[1],255,nothing)
     cv.createTrackbar('vMin', 'sliders',defaultMin[2],255,nothing)
-    cv.createTrackbar('hMax', 'sliders',defaultMax[0],179,nothing)
+    cv.createTrackbar('hMax', 'sliders',defaultMax[0]+5,179,nothing)
     cv.createTrackbar('sMax', 'sliders',255,255,nothing)
     cv.createTrackbar('vMax', 'sliders',255,255,nothing)
     while(not calibrated):
@@ -155,6 +153,9 @@ def getMidpoint(x0,y0,x1,y1):
     cy=(y0+y1)/2
     return(cx,cy)
 def calibrateLighting():
+    H=[]
+    S=[]
+    V=[]
     minVal,maxVal=calibrateSaberClick()
     calMin,calMax=calibrateSaberSlide(minVal,maxVal)
     lowerHSV=np.array(calMin)
@@ -299,6 +300,7 @@ def getSwingDirection(XY,YZ,XZ,centers,dt):
     xySpread=stDev(shortenedXY)
     yzSpread=stDev(shortenedYZ)
     xzSpread=stDev(shortenedXZ)
+    
     x1,y1,l1=centers[-2]#second most recent
     x2,y2,l2=centers[-1]#most recent value
     dx=x2-x1

@@ -1,5 +1,6 @@
 from cmu_112_graphics import *
 import saberTracker
+import mapGeneration
 import numpy as np
 import time
 
@@ -27,13 +28,15 @@ def appStarted(app):
     #errors:
     app.showError=False
     app.errorText=''
+
     #cv variables 
     app.lowerHSV=None
     app.upperHSV=None
     app.calibrated=False
     app.trueSaberLength=0
 
-
+    #map variables:
+    app.frameSpeed=0
     
 def createButtons(app):
     playButton=button(app.width/2, app.height/4, app.width/2, 0.2*app.height, 'play a song')

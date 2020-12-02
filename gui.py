@@ -15,7 +15,6 @@ class button(object):
         return hash(self.x)
 
 def appStarted(app):
-    app.calibrated=False
     app.showBackButton=False
     app.homeButtons=[]
     app.calibrateButtons=[]
@@ -32,7 +31,7 @@ def appStarted(app):
     #cv variables 
     app.lowerHSV=None
     app.upperHSV=None
-    app.calibrated=False
+    app.calibrated=True
     app.trueSaberLength=0
 
     #map variables:
@@ -183,6 +182,7 @@ def redrawAll(app, canvas):
             canvas.create_rectangle(margin, margin, app.width-margin, app.height-margin,fill='red')
             canvas.create_text(app.width/2, app.height/2, text=app.errorText, fill='black', font='arial 20 bold')
     else:
+        saberTracker.generalTracking(app.levelMap, app.noteVisibility)
         #create backdrop and stuff
         canvas.create_rectangle(0,0,app.width,app.height,fill='black')
         smallGap=100
@@ -190,5 +190,5 @@ def redrawAll(app, canvas):
         topOffset=app.height/2
         canvas.create_line(app.width/2-smallGap, topOffset, app.width/2-bigGap, app.height, fill='cyan',width=5)
         canvas.create_line(app.width/2+smallGap, topOffset, app.width/2+bigGap, app.height, fill='cyan',width=5)
-        drawNotes(app, canvas)
+        #drawNotes(app, canvas)
 runApp(width=1280, height=960)

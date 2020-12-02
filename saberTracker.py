@@ -163,10 +163,24 @@ def calibrateLighting():
     return lowerHSV, upperHSV
 
 #general function, acts as 'main' for the cv loop
-def generalTracking(lowerHSV, upperHSV, trueSaberLength):
+def getCenter(box):
+    x0,y0=box[0]
+    x1,y1=box[1]
+    x2,y2=box[2]
+    x3,y3=box[3]
+    minX=min(x0,x1,x2,x3)
+    maxX=max(x0,x1,x2,x3)
+    minY=min(y0,y1,y2,y3)
+    maxY=max(y0,y1,y2,y3)
+    cx,cy=getMidpoint(minX,minY,maxX,maxY)
+    return cx,cy
+
+lower_blue = np.array([62,91,82])
+upper_blue = np.array([123,255,255])   
+#pass in the entire map, and create a map decoder in the saberTracker
+def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_blue, trueSaberLength=0):
     calibrated=False
-    # lower_blue = np.array([62,91,82])
-    # upper_blue = np.array([123,255,255])
+
     # trueSaberLength=calibrateLength(lower_blue,upper_blue)
     centers=[]
     XY=[]
@@ -176,8 +190,23 @@ def generalTracking(lowerHSV, upperHSV, trueSaberLength):
     camHeight = cap.get(4)
     cxPrev=0
     cyPrev=0
+    mapLength=len(levelMap)
+    gridWidth=camHeight//3
+    gridHeight=camHeight
+    i=0
+    gridCenters=dict()
+    gridCenters['00']=(camWidth/2-gridWidth,camHeight/2-gridHeight)
+    gridCenters['01']=(camWidth/2,camHeight/2-gridHeight)
+    gridCenters['02']=(camWidth/2+gridWidth,camHeight/2-gridHeight)
+    gridCenters['10']=(camWidth/2-gridWidth,camHeight/2)
+    gridCenters['11']=(camWidth/2,camHeight/2)
+    gridCenters['12']=(camWidth/2+gridWidth,camHeight/2)
+    gridCenters['20']=(camWidth/2-gridWidth,camHeight/2+gridHeight)
+    gridCenters['21']=(camWidth/2,camHeight/2+gridHeight)
+    gridCenters['22']=(camWidth/2+gridWidth,camHeight/2+gridHeight)
+    noteSize=gridWidth
+    font = cv.FONT_HERSHEY_SIMPLEX
     while(True):
-    
         startTime=time.time()
         _, frame = cap.read()
         # Convert BGR to HSV
@@ -201,6 +230,32 @@ def generalTracking(lowerHSV, upperHSV, trueSaberLength):
         #identify saber w/ contour detection
         contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         
+        #draw the notes onto the result
+        if levelMap==[]:
+            break
+        visibleNotes=levelMap[0:noteVisibility]
+        notesSeen=len(visibleNotes)
+
+        for i in range(notesSeen):
+            value=visibleNotes[i]
+            if value!=None:
+                row,col,direction=value
+                sizeRatio=((notesSeen-i)/notesSeen)
+                size=int(noteSize*sizeRatio)
+                pos=str(row)+str(col)
+                x,y=gridCenters[pos]
+                dx=x-camWidth/2
+                cx=int(camWidth/2+dx*sizeRatio)
+                dy=y-camHeight/2
+                cy=int(camHeight/2+dy*sizeRatio)
+                if direction==-1:
+                    cv.circle(res,(cx,cy), int(size/2), (101,101,101),-1)
+                else:
+                    blue=(255,0,0)
+                    cv.rectangle(res,cx,cy,255,2,-1)
+                    #cv.putText(res, str(direction),(cx,cy),font,size/noteSize,(255,255,255),2,cv2.LINE_AA)
+                    #canvas.create_text(cx,cy,text='^', font=f'arial {int(size/2)}',angle=int(direction)+180, fill='white')
+        levelMap=levelMap[1:]
         if len(contours)>0:
             #next 4 lines from here:# https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
             rect = cv.minAreaRect(contours[0])
@@ -208,20 +263,15 @@ def generalTracking(lowerHSV, upperHSV, trueSaberLength):
             box = np.int0(box)
             cv.drawContours(res,[box],0,(0,0,255),2)
 
-            #determine the center of the saber
+            cx,cy=getCenter(box)
+
+            #determine length of saber
             x0,y0=box[0]
             x1,y1=box[1]
             x2,y2=box[2]
-            x3,y3=box[3]
-            minX=min(x0,x1,x2,x3)
-            maxX=max(x0,x1,x2,x3)
-            minY=min(y0,y1,y2,y3)
-            maxY=max(y0,y1,y2,y3)
-            cx,cy=getMidpoint(minX,minY,maxX,maxY)
-
-            #determine length of saber
             saberLength1=distance(x0,y0,x1,y1)
             saberLength2=distance(x1,y1,x2,y2)
+
             if(saberLength1>saberLength2):
                 saberLength=saberLength1
                 saberWidth=saberLength2
@@ -251,7 +301,6 @@ def generalTracking(lowerHSV, upperHSV, trueSaberLength):
                     print(swing)
                     pass
             #debugging tools
-            font=cv.FONT_HERSHEY_SIMPLEX
             #print(cx,cy)
             #print(f'pitch: {yzAngle}, yaw: {xzAngle}, plane angle: {xyAngle}')
             #cv.putText(res,f'dx: {cx-cxPrev}, dy: {cy-cyPrev}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
@@ -260,8 +309,10 @@ def generalTracking(lowerHSV, upperHSV, trueSaberLength):
             cxPrev=cx
             cyPrev=cy
         
+        
         cv.imshow('frame',frame) 
         cv.imshow('mask',mask)
+        #cv.resizeWindow('result', 1280,960)
         cv.imshow('result', res)
 
         k = cv.waitKey(5) & 0xFF
@@ -346,7 +397,7 @@ def getSwingDirection(XY,YZ,XZ,centers,dt):
     #swing down left(SW)
 
     pass
-    
+
 #generalTracking()
 #previously used code for figuring out best way to mask
 

@@ -193,4 +193,4 @@ def redrawAll(app, canvas):
         canvas.create_line(app.width/2-smallGap, topOffset, app.width/2-bigGap, app.height, fill='cyan',width=5)
         canvas.create_line(app.width/2+smallGap, topOffset, app.width/2+bigGap, app.height, fill='cyan',width=5)
         drawNotes(app, canvas)
-runApp(width=640, height=480)
+runApp(width=1280, height=720)

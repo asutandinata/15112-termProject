@@ -318,18 +318,18 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             XY.append(xyAngle)
             YZ.append(yzAngle)
             XZ.append(xzAngle)
-            
+            cv.putText(mask,f'{xyAngle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
             
             #check if we have hit a note
             
-            if levelMap[0]==None or levelMap[0][2]==-1:
+            if len(levelMap)!=0 and (levelMap[0]==None or levelMap[0][2]==-1):
                 nextFrameHasNote=False
             else:
                 nextFrameHasNote=True
             inSwing=isSwinging(centers)
             if inSwing and noteNear:
                 #we swung while a note is near
-                #if the swing is in the right direction and covers the note:
+                if abs(direction-xyAngle-90)<15 or abs(direction-xyAngle-270)<15 or abs(direction-xyAngle)<15:
                     swing=getSwingDirection(XY,YZ,XZ,centers,dt)
                     score+=100
                     combo+=1
@@ -340,8 +340,11 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                             levelMap[i]=None
                             break
                     if swing!=None:
+                        
                         print(swing)
                         pass
+                else:
+                    combo=0
             elif not inSwing and nextFrameHasNote:
                 combo=0
             

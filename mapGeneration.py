@@ -32,7 +32,7 @@ import random
 
 
 def generateMap(frames,frameGap, bombsEnabled, bombChance=0):
-    mapFrames=[]
+    mapFrames=20*[None]
     previousFrame=(-1,-1,-1)
     framesSinceLastNote=0
     for i in range(frames):
@@ -55,59 +55,60 @@ def generateFrame(previousFrame):
     row=random.randint(0,2)
     col=random.randint(0,2)
     if row==previousFrame[0] or col==previousFrame[1]:
-        generateFrame(previousFrame)
+        return generateFrame(previousFrame)
     #we know we have a valid row and column position
-    directions=[0,45,90,135,180,225,270,315]
-    
-    if col==0:
-        #swings can only be outwards:[225, 270, 315]
-        directions.remove(0)
-        directions.remove(45)
-        directions.remove(90)
-        directions.remove(135)
-        directions.remove(180)
-        if row==1:
-            pass
-        elif row==0:
-            directions.remove(270)
-            directions.remove(225)
-        elif row==2:
-            directions.remove(270)
-            directions.remove(225)
-    elif col==2:
-        directions.remove(0)
-        directions.remove(180)
-        directions.remove(225)
-        directions.remove(270)
-        directions.remove(315)
-        #swings can only be outwards:[45, 90, 135]
-        if row==1:
-            pass
-        elif row==0:
-            directions.remove(90)
-            directions.remove(135)
-        elif row==2:
+    else:
+        directions=[0,45,90,135,180,225,270,315]
+        
+        if col==0:
+            #swings can only be outwards:[225, 270, 315]
+            directions.remove(0)
             directions.remove(45)
             directions.remove(90)
-    elif row==0:
-        #swings can only be upwards:[0,45,315]
-        directions.remove(90)
-        directions.remove(135)
-        directions.remove(180)
-        directions.remove(225)
-        directions.remove(270)
-    elif row==2:
-        #swings can only be downwards:[135, 180, 225]
-        directions.remove(0)
-        directions.remove(45)
-        directions.remove(90)
-        directions.remove(270)
-        directions.remove(315)
+            directions.remove(135)
+            directions.remove(180)
+            if row==1:
+                pass
+            elif row==0:
+                directions.remove(270)
+                directions.remove(225)
+            elif row==2:
+                directions.remove(270)
+                directions.remove(225)
+        elif col==2:
+            directions.remove(0)
+            directions.remove(180)
+            directions.remove(225)
+            directions.remove(270)
+            directions.remove(315)
+            #swings can only be outwards:[45, 90, 135]
+            if row==1:
+                pass
+            elif row==0:
+                directions.remove(90)
+                directions.remove(135)
+            elif row==2:
+                directions.remove(45)
+                directions.remove(90)
+        elif row==0:
+            #swings can only be upwards:[0,45,315]
+            directions.remove(90)
+            directions.remove(135)
+            directions.remove(180)
+            directions.remove(225)
+            directions.remove(270)
+        elif row==2:
+            #swings can only be downwards:[135, 180, 225]
+            directions.remove(0)
+            directions.remove(45)
+            directions.remove(90)
+            directions.remove(270)
+            directions.remove(315)
 
-    i=random.randint(0,len(directions)-1)
-    direction=directions[i]
+        i=random.randint(0,len(directions)-1)
+        direction=directions[i]
 
-    return (row,col, direction)
+        return (row,col, direction)
 
 def generateBombs(mapFrames, bombChance):
     for i in range(len(mapFrames)-1):

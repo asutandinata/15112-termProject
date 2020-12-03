@@ -6,6 +6,8 @@ import time
 pygame.init()
 pygame.mixer.init()
 cap = cv.VideoCapture(0)
+cap.set(3,1280)#width
+cap.set(4,720)#height
 
 calibrated=False
 H=[]
@@ -42,7 +44,6 @@ def get3DAngle(x,y):
 #hMin,hMax,sMin,sMax,vMin,vMax=85,147,130,253,63,255
 def getValueOnClick(event,x,y,flags,hsv):
     if event == cv.EVENT_LBUTTONDOWN:
-        print(y,x)
         HSVval=(hsv[y][x])
         H.append(HSVval[0])
         S.append(HSVval[1])
@@ -162,6 +163,17 @@ def calibrateLighting():
     upperHSV=np.array(calMax)
     return lowerHSV, upperHSV
 
+def noteHittable(closestFrames,gridCenters):
+    for frame in closestFrames:
+        if frame==None or frame[2]==-1:
+            pass
+        else:
+            row,col,direction=frame
+            pos=str(row)+str(col)
+            x,y=gridCenters[pos]
+            return x,y,direction, True
+    return 0,0,0,False
+
 #general function, acts as 'main' for the cv loop
 def getCenter(box):
     x0,y0=box[0]
@@ -180,19 +192,22 @@ upper_blue = np.array([123,255,255])
 #pass in the entire map, and create a map decoder in the saberTracker
 def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_blue, trueSaberLength=0):
     calibrated=False
-
+    noteNear=False
+    swingThreshold=4
+    score=0
+    combo=0
     # trueSaberLength=calibrateLength(lower_blue,upper_blue)
     centers=[]
     XY=[]
     YZ=[]
     XZ=[]
     camWidth  = cap.get(3)
-    camHeight = cap.get(4)
+    camHeight = int(cap.get(4))
     cxPrev=0
     cyPrev=0
     mapLength=len(levelMap)
     gridWidth=camHeight//3
-    gridHeight=camHeight
+    gridHeight=gridWidth
     i=0
     gridCenters=dict()
     gridCenters['00']=(camWidth/2-gridWidth,camHeight/2-gridHeight)
@@ -231,17 +246,20 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         
         #draw the notes onto the result
-        if levelMap==[]:
-            break
         visibleNotes=levelMap[0:noteVisibility]
         notesSeen=len(visibleNotes)
-
+        smallGap=100
+        bigGap=300
+        topOffset=int(camHeight/2)
+        lineColor=(255,255,0)
+        cv.line(res,(int(camWidth/2-smallGap),topOffset),(int(camWidth/2-bigGap),camHeight),lineColor,5)
+        cv.line(res,(int(camWidth/2+smallGap),topOffset),(int(camWidth/2+bigGap),camHeight),lineColor,5)
         for i in range(notesSeen):
             value=visibleNotes[i]
             if value!=None:
                 row,col,direction=value
                 sizeRatio=((notesSeen-i)/notesSeen)
-                size=int(noteSize*sizeRatio)
+                size=noteSize*sizeRatio
                 pos=str(row)+str(col)
                 x,y=gridCenters[pos]
                 dx=x-camWidth/2
@@ -252,10 +270,16 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                     cv.circle(res,(cx,cy), int(size/2), (101,101,101),-1)
                 else:
                     blue=(255,0,0)
-                    cv.rectangle(res,cx,cy,255,2,-1)
-                    #cv.putText(res, str(direction),(cx,cy),font,size/noteSize,(255,255,255),2,cv2.LINE_AA)
-                    #canvas.create_text(cx,cy,text='^', font=f'arial {int(size/2)}',angle=int(direction)+180, fill='white')
+                    topLeft=(int(cx-size/2), int(cy-size/2))
+                    botRight=(int(cx+size/2),int(cy+size/2))
+                    cv.rectangle(res,topLeft,botRight,blue,-1)
+                    cv.putText(res, str(direction),(cx,cy),font,size/noteSize,(255,255,255),2,cv.LINE_AA)
+        #checks if the closest frame contains a note
+        closestFrames=levelMap[:swingThreshold]
+        noteX,noteY,direction,noteNear=noteHittable(closestFrames,gridCenters)
         levelMap=levelMap[1:]
+        cv.putText(res,f'score: {score}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+        cv.putText(res,f'combo:{combo}',(10,400), font, 1,(255,255,255),2,cv.LINE_AA)
         if len(contours)>0:
             #next 4 lines from here:# https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
             rect = cv.minAreaRect(contours[0])
@@ -294,17 +318,22 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             YZ.append(yzAngle)
             XZ.append(xzAngle)
             
+            
+            #check if we have hit a note
             inSwing=isSwinging(centers)
-            if inSwing:
+            if inSwing and noteNear:
+                score+=100
+                combo+=1
                 swing=getSwingDirection(XY,YZ,XZ,centers,dt)
                 if swing!=None:
                     print(swing)
                     pass
+            
             #debugging tools
             #print(cx,cy)
             #print(f'pitch: {yzAngle}, yaw: {xzAngle}, plane angle: {xyAngle}')
             #cv.putText(res,f'dx: {cx-cxPrev}, dy: {cy-cyPrev}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
-            cv.putText(res,f'pitch: {yzAngle}, yaw: {xzAngle}, roll:{xyAngle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+            #cv.putText(res,f'pitch: {yzAngle}, yaw: {xzAngle}, roll:{xyAngle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
             #cv.putText(res,f'{saberVector}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
             cxPrev=cx
             cyPrev=cy
@@ -312,7 +341,6 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         
         cv.imshow('frame',frame) 
         cv.imshow('mask',mask)
-        #cv.resizeWindow('result', 1280,960)
         cv.imshow('result', res)
 
         k = cv.waitKey(5) & 0xFF

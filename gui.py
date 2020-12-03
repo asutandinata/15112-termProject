@@ -112,15 +112,16 @@ def mousePressed(app, event):
                 else:
                     pass
             elif button.text=='Easy':
-                app.levelMap=mapGeneration.generateMap(500, 8,False)
+                app.levelMap=mapGeneration.generateMap(500, 30,False)
                 app.noteSpeed=5
-                app.noteVisibility=10
+                app.noteVisibility=20
                 app.inGame=True
                 
             elif button.text=='Medium':
-                app.levelMap=mapGeneration.generateMap(250, 8,True,10)
+                #app.levelMap=mapGeneration.generateMap(250, 20,True,15)
+                app.levelMap=20*[(0,0,0),(0,1,0),(0,2,0),(1,0,0),(1,1,0),(1,2,0),(2,0,0),(2,1,0),(2,2,0)]
                 app.noteSpeed=7
-                app.noteVisibility=10
+                app.noteVisibility=20
                 app.inGame=True
                 
             elif button.text=='Hard':
@@ -183,6 +184,7 @@ def redrawAll(app, canvas):
             canvas.create_text(app.width/2, app.height/2, text=app.errorText, fill='black', font='arial 20 bold')
     else:
         saberTracker.generalTracking(app.levelMap, app.noteVisibility)
+        app.inGame=False
         #create backdrop and stuff
         canvas.create_rectangle(0,0,app.width,app.height,fill='black')
         smallGap=100
@@ -190,5 +192,5 @@ def redrawAll(app, canvas):
         topOffset=app.height/2
         canvas.create_line(app.width/2-smallGap, topOffset, app.width/2-bigGap, app.height, fill='cyan',width=5)
         canvas.create_line(app.width/2+smallGap, topOffset, app.width/2+bigGap, app.height, fill='cyan',width=5)
-        #drawNotes(app, canvas)
-runApp(width=1280, height=960)
+        drawNotes(app, canvas)
+runApp(width=640, height=480)

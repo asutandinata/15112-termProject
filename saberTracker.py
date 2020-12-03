@@ -164,6 +164,7 @@ def calibrateLighting():
     return lowerHSV, upperHSV
 
 def noteHittable(closestFrames,gridCenters):
+   
     for frame in closestFrames:
         if frame==None or frame[2]==-1:
             pass
@@ -320,14 +321,29 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             
             
             #check if we have hit a note
+            
+            if levelMap[0]==None or levelMap[0][2]==-1:
+                nextFrameHasNote=False
+            else:
+                nextFrameHasNote=True
             inSwing=isSwinging(centers)
             if inSwing and noteNear:
-                score+=100
-                combo+=1
-                swing=getSwingDirection(XY,YZ,XZ,centers,dt)
-                if swing!=None:
-                    print(swing)
-                    pass
+                #we swung while a note is near
+                #if the swing is in the right direction and covers the note:
+                    swing=getSwingDirection(XY,YZ,XZ,centers,dt)
+                    score+=100
+                    combo+=1
+                    #remove the note from the map so you can't hit it again
+                    for i in range (len(levelMap)):
+                        frame=levelMap[i]
+                        if frame!=None and frame[2]!=-1:
+                            levelMap[i]=None
+                            break
+                    if swing!=None:
+                        print(swing)
+                        pass
+            elif not inSwing and nextFrameHasNote:
+                combo=0
             
             #debugging tools
             #print(cx,cy)

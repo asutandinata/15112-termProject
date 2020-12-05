@@ -164,7 +164,7 @@ def drawNotes(app, canvas):
                 canvas.create_oval(cx-size/2, cy-size/2,cx+size/2,cy+size/2, fill='gray')
             else:
                 canvas.create_rectangle(cx-size/2, cy-size/2,cx+size/2,cy+size/2, fill='blue',outline='black')
-                canvas.create_text(cx,cy,text='^', font=f'arial {int(size/2)}',angle=int(direction)+180, fill='white')
+                canvas.create_text(cx,cy,text='->', font=f'arial {int(size/2)}',angle=int(direction)+180, fill='white')
                 
         
 def redrawAll(app, canvas):

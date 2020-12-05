@@ -8,7 +8,9 @@ pygame.mixer.init()
 cap = cv.VideoCapture(0)
 cap.set(3,1280)#width
 cap.set(4,720)#height
-
+#soundfiles taken straight from actual game of beatsaber
+hit=pygame.mixer.Sound('hit.wav')
+missed=pygame.mixer.Sound('MissedNote.wav')
 calibrated=False
 H=[]
 S=[]
@@ -236,7 +238,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         kernel = np.ones((13,13),np.uint8)
         mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
         # mask=cv.dilate(mask,kernel, iterations=1)
-
+        notes=np.zeros((720,1280,3), np.uint8)
         #flip each image vertically
         res = cv.bitwise_and(frame,frame, mask= mask)#overlay boolean mask onto frame
         frame=cv.flip(frame, 1)
@@ -253,8 +255,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         bigGap=300
         topOffset=int(camHeight/2)
         lineColor=(255,255,0)
-        cv.line(res,(int(camWidth/2-smallGap),topOffset),(int(camWidth/2-bigGap),camHeight),lineColor,5)
-        cv.line(res,(int(camWidth/2+smallGap),topOffset),(int(camWidth/2+bigGap),camHeight),lineColor,5)
+        
         for i in range(notesSeen):
             value=visibleNotes[i]
             if value!=None:
@@ -268,25 +269,34 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                 dy=y-camHeight/2
                 cy=int(camHeight/2+dy*sizeRatio)
                 if direction==-1:
-                    cv.circle(res,(cx,cy), int(size/2), (101,101,101),-1)
+                    cv.circle(notes,(cx,cy), int(size/2), (101,101,101),-1)
                 else:
                     blue=(255,0,0)
+                    white=(255,255,255)
                     topLeft=(int(cx-size/2), int(cy-size/2))
                     botRight=(int(cx+size/2),int(cy+size/2))
-                    cv.rectangle(res,topLeft,botRight,blue,-1)
-                    cv.putText(res, str(direction),(cx,cy),font,size/noteSize,(255,255,255),2,cv.LINE_AA)
+                    cv.rectangle(notes,topLeft,botRight,blue,-1)
+                    
+                    cv.putText(notes, '->',(cx,cy),font,size/noteSize,white,2,cv.LINE_AA)
+                    #text rotation code(next 2 lines) from https://theailearner.com/2020/11/02/how-to-write-rotated-text-using-opencv-python/
+                    M = cv.getRotationMatrix2D((cx,cy), direction-90, 1)
+                    notes = cv.warpAffine(notes, M, (notes.shape[1], notes.shape[0]))
+
         #checks if the closest frame contains a note
         closestFrames=levelMap[:swingThreshold]
         noteX,noteY,direction,noteNear=noteHittable(closestFrames,gridCenters)
         levelMap=levelMap[1:]
         cv.putText(res,f'score: {score}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
         cv.putText(res,f'combo:{combo}',(10,400), font, 1,(255,255,255),2,cv.LINE_AA)
+        cv.line(res,(int(camWidth/2-smallGap),topOffset),(int(camWidth/2-bigGap),camHeight),lineColor,5)
+        cv.line(res,(int(camWidth/2+smallGap),topOffset),(int(camWidth/2+bigGap),camHeight),lineColor,5)
+        res=cv.add(notes,res)
         if len(contours)>0:
             #next 4 lines from here:# https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
             rect = cv.minAreaRect(contours[0])
             box = cv.boxPoints(rect)
             box = np.int0(box)
-            cv.drawContours(res,[box],0,(0,0,255),2)
+            cv.drawContours(res,[box],0,(255,0,0),1)
 
             cx,cy=getCenter(box)
 
@@ -333,6 +343,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                     swing=getSwingDirection(XY,YZ,XZ,centers,dt)
                     score+=100
                     combo+=1
+                    pygame.mixer.Channel(1).play(hit)
                     #remove the note from the map so you can't hit it again
                     for i in range (len(levelMap)):
                         frame=levelMap[i]
@@ -340,12 +351,13 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                             levelMap[i]=None
                             break
                     if swing!=None:
-                        
                         print(swing)
                         pass
                 else:
+                    pygame.mixer.Channel(1).play(missed)
                     combo=0
             elif not inSwing and nextFrameHasNote:
+                pygame.mixer.Channel(1).play(missed)
                 combo=0
             
             #debugging tools

@@ -224,6 +224,8 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
     gridCenters['22']=(camWidth/2+gridWidth,camHeight/2+gridHeight)
     noteSize=gridWidth
     font = cv.FONT_HERSHEY_SIMPLEX
+    blue=(255,0,0)
+    white=(255,255,255)
     while(True):
         startTime=time.time()
         _, frame = cap.read()
@@ -248,6 +250,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         #identify saber w/ contour detection
         contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         
+        
         #draw the notes onto the result
         visibleNotes=levelMap[0:noteVisibility]
         notesSeen=len(visibleNotes)
@@ -255,6 +258,8 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         bigGap=300
         topOffset=int(camHeight/2)
         lineColor=(255,255,0)
+        cv.line(res,(int(camWidth/2-smallGap),topOffset),(int(camWidth/2-bigGap),camHeight),lineColor,5)
+        cv.line(res,(int(camWidth/2+smallGap),topOffset),(int(camWidth/2+bigGap),camHeight),lineColor,5)
         
         for i in range(notesSeen):
             value=visibleNotes[i]
@@ -269,28 +274,28 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                 dy=y-camHeight/2
                 cy=int(camHeight/2+dy*sizeRatio)
                 if direction==-1:
-                    cv.circle(notes,(cx,cy), int(size/2), (101,101,101),-1)
+                    cv.circle(res,(cx,cy), int(size/2), (101,101,101),-1)
                 else:
-                    blue=(255,0,0)
-                    white=(255,255,255)
+                    
                     topLeft=(int(cx-size/2), int(cy-size/2))
                     botRight=(int(cx+size/2),int(cy+size/2))
                     cv.rectangle(notes,topLeft,botRight,blue,-1)
-                    
-                    cv.putText(notes, '->',(cx,cy),font,size/noteSize,white,2,cv.LINE_AA)
+                    cv.putText(notes, '>',(cx,cy),font,2*size/noteSize,white,2,cv.LINE_AA)
                     #text rotation code(next 2 lines) from https://theailearner.com/2020/11/02/how-to-write-rotated-text-using-opencv-python/
-                    M = cv.getRotationMatrix2D((cx,cy), direction-90, 1)
+                    M = cv.getRotationMatrix2D((cx,cy), direction, 1)
                     notes = cv.warpAffine(notes, M, (notes.shape[1], notes.shape[0]))
+
+                    #update result with notes, and reset notes to blank
+                    res=cv.add(notes,res)
+                    notes=np.zeros((720,1280,3), np.uint8)
 
         #checks if the closest frame contains a note
         closestFrames=levelMap[:swingThreshold]
         noteX,noteY,direction,noteNear=noteHittable(closestFrames,gridCenters)
         levelMap=levelMap[1:]
-        cv.putText(res,f'score: {score}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
-        cv.putText(res,f'combo:{combo}',(10,400), font, 1,(255,255,255),2,cv.LINE_AA)
-        cv.line(res,(int(camWidth/2-smallGap),topOffset),(int(camWidth/2-bigGap),camHeight),lineColor,5)
-        cv.line(res,(int(camWidth/2+smallGap),topOffset),(int(camWidth/2+bigGap),camHeight),lineColor,5)
-        res=cv.add(notes,res)
+        cv.putText(res,f'score: {score}',(10,300), font, 1,white,2,cv.LINE_AA)
+        cv.putText(res,f'combo:{combo}',(10,400), font, 1,white,2,cv.LINE_AA)
+        
         if len(contours)>0:
             #next 4 lines from here:# https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
             rect = cv.minAreaRect(contours[0])
@@ -328,18 +333,27 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             XY.append(xyAngle)
             YZ.append(yzAngle)
             XZ.append(xzAngle)
-            cv.putText(mask,f'{xyAngle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+            cv.putText(mask,f'{xyAngle}',(10,300), font, 1,white,2,cv.LINE_AA)
             
             #check if we have hit a note
-            
-            if len(levelMap)!=0 and (levelMap[0]==None or levelMap[0][2]==-1):
+            if len(levelMap)!=0 and (levelMap[0]==None):
                 nextFrameHasNote=False
+                nextFrameHasBomb=False
+            elif len(levelMap)!=0:
+                if levelMap[0][2]==-1:
+                    nextFrameHasBomb=True
+                    nextFrameHasNote=False
+                else:
+                    nextFrameHasNote=True
+                    nextFrameHasBomb=True
             else:
-                nextFrameHasNote=True
+                break
+
             inSwing=isSwinging(centers)
+
             if inSwing and noteNear:
                 #we swung while a note is near
-                if abs(direction-xyAngle-90)<15 or abs(direction-xyAngle-270)<15 or abs(direction-xyAngle)<15:
+                if abs(direction-xyAngle)<15 or abs(direction-xyAngle-180)<15:
                     swing=getSwingDirection(XY,YZ,XZ,centers,dt)
                     score+=100
                     combo+=1

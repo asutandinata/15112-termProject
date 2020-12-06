@@ -379,9 +379,11 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             if inSwing and bombNear:#we swung while a bomb is near
                 bombHit=False
                 print(saberLine)
-                for x,y in saberLine:
-                    if type(x, float) and type(y, float):
-                        if distance(x,y,bombX,bombY)<bombRad:
+                if distance(cx,cy,bombX,bombY)<bombRad:
+
+                # for x,y in saberLine:
+                #     if type(x)==float and type(y)==float:
+                #         if distance(x,y,bombX,bombY)<bombRad:
                             bombHit=True
                 #convert saber to a 'line', which is basically just 10 (x,y) tuples
                 #for the x and y in the line, if it's distance is less than bombRad, then bombHit is true 

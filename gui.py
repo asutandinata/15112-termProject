@@ -24,6 +24,11 @@ def appStarted(app):
     createButtons(app)
     app.displayButtons=app.homeButtons
     app.heading='Welcome to cheapsaber!'
+    app.helpText=('''Welcome to cheapsaber:\n
+                    To play, find tube like object and calibrate it using the calibrate button \n
+                    Then, you could start a level at a difficulty you want\n
+                    To play, swing your saber in the direction of the arrow\n
+                    Avoid hitting bombs though,a s those will subtract 500 points from your score''')
 
     #errors:
     app.showError=False

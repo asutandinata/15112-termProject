@@ -1,4 +1,5 @@
 from cmu_112_graphics import *
+#graphics library from https://www.cs.cmu.edu/~112/index.html
 import saberTracker
 import mapGeneration
 import numpy as np
@@ -29,10 +30,10 @@ def appStarted(app):
     app.errorText=''
 
     #cv variables 
-    app.lowerHSV=None
-    app.upperHSV=None
+    app.lowerHSV=np.array([62,91,82])
+    app.upperHSV=np.array([123,255,255])
     app.calibrated=True
-    app.trueSaberLength=0
+    app.trueSaberLength=200
 
     #map variables:
     app.levelMap=[]
@@ -103,9 +104,11 @@ def mousePressed(app, event):
                 app.heading='Help Screen'
             elif button.text=='Calibrate Lighting':
                 app.lowerHSV,app.upperHSV=saberTracker.calibrateLighting()
+
             elif button.text=='Calibrate Length':
                 app.trueSaberLength=saberTracker.calibrateLength(app.lowerHSV, app.upperHSV)
                 app.calibrated=True
+
             elif button.text=='Debug':
                 if app.calibrated:
                     saberTracker.generalTracking(app.lowerHSV, app.upperHSV, app.trueSaberLength)
@@ -183,7 +186,7 @@ def redrawAll(app, canvas):
             canvas.create_rectangle(margin, margin, app.width-margin, app.height-margin,fill='red')
             canvas.create_text(app.width/2, app.height/2, text=app.errorText, fill='black', font='arial 20 bold')
     else:
-        saberTracker.generalTracking(app.levelMap, app.noteVisibility)
+        saberTracker.generalTracking(app.levelMap, app.noteVisibility,app.lowerHSV,app.upperHSV,app.trueSaberLength)
         app.inGame=False
         #create backdrop and stuff
         canvas.create_rectangle(0,0,app.width,app.height,fill='black')

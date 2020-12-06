@@ -8,13 +8,15 @@ pygame.mixer.init()
 cap = cv.VideoCapture(0)
 cap.set(3,1280)#width
 cap.set(4,720)#height
-#soundfiles taken straight from actual game of beatsaber
+
+#soundfiles taken straight from actual gamefiles of beatsaber
 hit=pygame.mixer.Sound('hit.wav')
 missed=pygame.mixer.Sound('MissedNote.wav')
 calibrated=False
 H=[]
 S=[]
 V=[]
+
 def nothing(x):
     pass
 
@@ -61,7 +63,7 @@ def calibrateSaberClick():
         hsv=cv.flip(hsv,1)
         cv.setMouseCallback('calibration screen',getValueOnClick,hsv)
         cv.imshow('calibration screen',hsv)
-        if cv.waitKey(20) & 0xFF == 27:
+        if cv.waitKey(20) & 0xFF == 27:#waitkey usage from https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_image_display/py_image_display.html
             break
         if len(H)>4: 
             break   
@@ -93,14 +95,14 @@ def calibrateSaberSlide(defaultMin,defaultMax):
         upper=np.array([hMax,sMax,vMax])
 
         mask = cv.inRange(hsv, lower, upper)
+        #next 2 lines based on guide on morphological transform: https://docs.opencv.org/master/d9/d61/tutorial_py_morphological_ops.html
         kernel = np.ones((13,13),np.uint8)
         mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
         res = cv.bitwise_and(frame,frame, mask= mask)
         mask = cv.flip(mask, 1)
         cv.imshow('mask',mask)
-        k = cv.waitKey(5) & 0xFF
-        if k == 27:
-            calibrated=True
+        if cv.waitKey(20) & 0xFF == 27:#waitkey usage from https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_image_display/py_image_display.html
+            break
     cv.destroyWindow('sliders')
     cv.destroyWindow('mask')
     
@@ -125,13 +127,14 @@ def calibrateLength(minVal, maxVal):
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         hsv=cv.medianBlur(hsv,11)
         mask = cv.inRange(hsv, minVal, maxVal)
+        #next 2 lines based on guide on morphological transform: https://docs.opencv.org/master/d9/d61/tutorial_py_morphological_ops.html
         kernel = np.ones((13,13),np.uint8)
         mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
-        cv.putText(mask,f'now we will be calibrating saber length',(100,10), font, 0.5,(255,255,255),2,cv.LINE_AA)
+        
         contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         cv.imshow('mask', mask)
         if len(contours)>0:# a contour is detected
-            #contour detection
+            #contour detection next 4 lines from, https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
             rect = cv.minAreaRect(contours[0])
             box = cv.boxPoints(rect)
             box = np.int0(box)
@@ -147,7 +150,6 @@ def calibrateLength(minVal, maxVal):
                 sizeCalibrated=True
             else:
                 saberSizes=[]
-        
     cv.destroyWindow('mask')
     return average(saberSizes)
 
@@ -177,6 +179,32 @@ def noteHittable(closestFrames,gridCenters):
             return x,y,direction, True
     return 0,0,0,False
 
+def bombHittable(closestFrames,gridCenters):
+    for frame in closestFrames:
+        if frame==None or frame[2]!=-1:
+            pass
+        else:
+            row,col,val=frame
+            pos=str(row)+str(col)
+            x,y=gridCenters[pos]
+            return x,y,True
+    return 0,0,False
+
+def makeLine(x0,y0,x1,y1,resolution):
+    m=(y1-y0)/(x1-x0)
+    dx=(x1-x0)/resolution
+    result=[(x0,y0)]
+    for i in range(resolution):
+        newX=x0+i*dx
+        newY=y0+i*m
+        if math.isnan(newX) or math.isinf(newX):#learned about nan/inf from https://stackoverflow.com/questions/944700/how-can-i-check-for-nan-values
+            newX=0
+        if math.isnan(newY) or math.isinf(newX):
+            newY=0
+        result.append((newX,newY))
+    return result
+        
+
 #general function, acts as 'main' for the cv loop
 def getCenter(box):
     x0,y0=box[0]
@@ -199,7 +227,6 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
     swingThreshold=4
     score=0
     combo=0
-    # trueSaberLength=calibrateLength(lower_blue,upper_blue)
     centers=[]
     XY=[]
     YZ=[]
@@ -226,6 +253,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
     font = cv.FONT_HERSHEY_SIMPLEX
     blue=(255,0,0)
     white=(255,255,255)
+
     while(True):
         startTime=time.time()
         _, frame = cap.read()
@@ -234,7 +262,6 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
 
         hsv=cv.medianBlur(hsv,11)
 
-        #mask = cv.inRange(hsv, lower_blue, upper_blue)
         mask = cv.inRange(hsv, lowerHSV, upperHSV)
         
         kernel = np.ones((13,13),np.uint8)
@@ -247,9 +274,8 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         mask = cv.flip(mask, 1)
         res=cv.flip(res,1)
 
-        #identify saber w/ contour detection
+        #identify saber w/ contour detection, https://docs.opencv.org/3.4/d4/d73/tutorial_py_contours_begin.html
         contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-        
         
         #draw the notes onto the result
         visibleNotes=levelMap[0:noteVisibility]
@@ -260,7 +286,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         lineColor=(255,255,0)
         cv.line(res,(int(camWidth/2-smallGap),topOffset),(int(camWidth/2-bigGap),camHeight),lineColor,5)
         cv.line(res,(int(camWidth/2+smallGap),topOffset),(int(camWidth/2+bigGap),camHeight),lineColor,5)
-        
+        bombRad=0
         for i in range(notesSeen):
             value=visibleNotes[i]
             if value!=None:
@@ -275,6 +301,8 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                 cy=int(camHeight/2+dy*sizeRatio)
                 if direction==-1:
                     cv.circle(res,(cx,cy), int(size/2), (101,101,101),-1)
+                    if bombRad<size/2:
+                        bombRad=size/2
                 else:
                     
                     topLeft=(int(cx-size/2), int(cy-size/2))
@@ -292,6 +320,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         #checks if the closest frame contains a note
         closestFrames=levelMap[:swingThreshold]
         noteX,noteY,direction,noteNear=noteHittable(closestFrames,gridCenters)
+        bombX,bombY,bombNear=bombHittable(closestFrames,gridCenters)
         levelMap=levelMap[1:]
         cv.putText(res,f'score: {score}',(10,300), font, 1,white,2,cv.LINE_AA)
         cv.putText(res,f'combo:{combo}',(10,400), font, 1,white,2,cv.LINE_AA)
@@ -301,7 +330,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             rect = cv.minAreaRect(contours[0])
             box = cv.boxPoints(rect)
             box = np.int0(box)
-            cv.drawContours(res,[box],0,(255,0,0),1)
+            cv.drawContours(res,[box],0,(0,255,0),1)
 
             cx,cy=getCenter(box)
 
@@ -311,15 +340,17 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             x2,y2=box[2]
             saberLength1=distance(x0,y0,x1,y1)
             saberLength2=distance(x1,y1,x2,y2)
-
+            
             if(saberLength1>saberLength2):
                 saberLength=saberLength1
                 saberWidth=saberLength2
                 saberVector2D=np.array([x1-x0,y0-y1])
+                saberLine=(makeLine(x0,y0,x1,y1,10))
             else:
                 saberLength=saberLength2
                 saberWidth=saberLength1
                 saberVector2D=np.array([x2-x1,y1-y2])
+                saberLine=makeLine(x1,y1,x2,y2,10)
 
             #determine saber angles  
 
@@ -336,42 +367,58 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             cv.putText(mask,f'{xyAngle}',(10,300), font, 1,white,2,cv.LINE_AA)
             
             #check if we have hit a note
-            if len(levelMap)!=0 and (levelMap[0]==None):
+            if len(levelMap)!=0 and ((levelMap[0]==None) or (levelMap[0][2]==-1)):
                 nextFrameHasNote=False
-                nextFrameHasBomb=False
             elif len(levelMap)!=0:
-                if levelMap[0][2]==-1:
-                    nextFrameHasBomb=True
-                    nextFrameHasNote=False
-                else:
-                    nextFrameHasNote=True
-                    nextFrameHasBomb=True
+                nextFrameHasNote=True
             else:
                 break
+                
+            inSwing=isSwinging(centers) and isSwing3D(XY,YZ,XZ,centers,dt)
 
-            inSwing=isSwinging(centers)
+            if inSwing and bombNear:#we swung while a bomb is near
+                bombHit=False
+                print(saberLine)
+                for x,y in saberLine:
+                    if type(x, float) and type(y, float):
+                        if distance(x,y,bombX,bombY)<bombRad:
+                            bombHit=True
+                #convert saber to a 'line', which is basically just 10 (x,y) tuples
+                #for the x and y in the line, if it's distance is less than bombRad, then bombHit is true 
+                if(bombHit):
+                    pygame.mixer.Channel(3).play(missed)
+                    score-=500
+                    if score<0:
+                        score=0
+                    #if so, subtract 500 from the score if possible
+                    for i in range (len(levelMap)):
+                        frame=levelMap[i]
+                        if frame!=None and frame[2]==-1:
+                            levelMap[i]=None
+                            break
+                    #remove bomb from map
+                
 
             if inSwing and noteNear:
                 #we swung while a note is near
                 if abs(direction-xyAngle)<15 or abs(direction-xyAngle-180)<15:
-                    swing=getSwingDirection(XY,YZ,XZ,centers,dt)
+                    
                     score+=100
                     combo+=1
                     pygame.mixer.Channel(1).play(hit)
+                    noteBroken=True
                     #remove the note from the map so you can't hit it again
                     for i in range (len(levelMap)):
                         frame=levelMap[i]
                         if frame!=None and frame[2]!=-1:
                             levelMap[i]=None
+                            i=len(levelMap)-1
                             break
-                    if swing!=None:
-                        print(swing)
-                        pass
                 else:
                     pygame.mixer.Channel(1).play(missed)
                     combo=0
             elif not inSwing and nextFrameHasNote:
-                pygame.mixer.Channel(1).play(missed)
+                pygame.mixer.Channel(2).play(missed)
                 combo=0
             
             #debugging tools
@@ -382,14 +429,14 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             #cv.putText(res,f'{saberVector}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
             cxPrev=cx
             cyPrev=cy
+            startTime=time.time()
         
         
         cv.imshow('frame',frame) 
         cv.imshow('mask',mask)
         cv.imshow('result', res)
 
-        k = cv.waitKey(5) & 0xFF
-        if k == 27:
+        if cv.waitKey(5) & 0xFF == 27:#waitkey usage from https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_image_display/py_image_display.html
             break
     cv.destroyAllWindows()
 
@@ -407,7 +454,7 @@ def isSwinging(centers):
     #a swing is happening!
     return True
 
-def getSwingDirection(XY,YZ,XZ,centers,dt):
+def isSwing3D(XY,YZ,XZ,centers,dt):
     #THE CHANGE IN SABER CENTER INDICATES A SWING HAS BEGUN
     #THE ANGLES ARE THEN USED TO CHECK IF A SWING IS VALID
     #although it could all be done through looking at centers, analyzing the saber's angles will ensure a swing is proper and not just a translation
@@ -417,7 +464,7 @@ def getSwingDirection(XY,YZ,XZ,centers,dt):
     shortenedXY=XY[-minTime:]
     shortenedYZ=YZ[-minTime:]
     shortenedXZ=XZ[-minTime:]
-    #dXYdt=(shortenedXY[minTime-1]-shortenedXY[minTime-2])/time
+    
     dYZdt=abs((shortenedYZ[minTime-1]-shortenedYZ[minTime-2])/dt)
     dXZdt=abs((shortenedXZ[minTime-1]-shortenedXZ[minTime-2])/dt)
 
@@ -432,35 +479,38 @@ def getSwingDirection(XY,YZ,XZ,centers,dt):
     dl=l2-l1
     XYangleError=8#maximum error an angle(XY) could have to consider the swing to be valid
     minMovement=10
-    stDevError=20
-    angleError=10
+    minSpread=3
     
     #using each angle's derivative wrt time, and the standard deviations of the past few 'minTime' values, we find the swing direction
+    if ((xzSpread>minMovement>minSpread and dXZdt>minMovement) or
+    (yzSpread>minMovement>minSpread and dYZdt>minMovement)):
+        return True
+    else:
+        return False
+    # if(xySpread<XYangleError) and (abs(dl)>10) and (dYZdt>5 or  dXZdt>5):
+    #     #print(dx,dy)
+    #     #print(yzSpread,xzSpread, dYZdt,dXZdt)
+    #     if (dYZdt>10 and xzSpread<10) or (abs(dy)>15 and abs(dx)<12):
+    #         if(dy<0):
+    #             return'swinging up'
+    #         else:
+    #             return 'swinging down'
+    #     elif (dXZdt>10 and dYZdt<10) or (abs(dx)>15 and abs(dy)<12):
+    #         if dx>0:
+    #             return 'swinging right'
+    #         else:
+    #             return 'swinging left'
+    #     elif abs(abs(dx)-abs(dy))<30 and abs(dx)>6 and abs(dy)>6:
+    #         if dx>0 and dy<0:
+    #             return 'swinging up right'
+    #         elif dx>0 and dy<0:
+    #             return 'swinging up right'
+    #         elif dx<0 and dy>0:
+    #             return 'swinging down left'
+    #         elif dx<0 and dy>0:
+    #             return 'swinging down left'
 
-    if(xySpread<XYangleError) and (abs(dl)>10) and (dYZdt>5 or  dXZdt>5):
-        #print(dx,dy)
-        #print(yzSpread,xzSpread, dYZdt,dXZdt)
-        if (dYZdt>10 and xzSpread<10) or (abs(dy)>15 and abs(dx)<12):
-            if(dy<0):
-                return'swinging up'
-            else:
-                return 'swinging down'
-        elif (dXZdt>10 and dYZdt<10) or (abs(dx)>15 and abs(dy)<12):
-            if dx>0:
-                return 'swinging right'
-            else:
-                return 'swinging left'
-        elif abs(abs(dx)-abs(dy))<30 and abs(dx)>6 and abs(dy)>6:
-            if dx>0 and dy<0:
-                return 'swinging up right'
-            elif dx>0 and dy<0:
-                return 'swinging up right'
-            elif dx<0 and dy>0:
-                return 'swinging down left'
-            elif dx<0 and dy>0:
-                return 'swinging down left'
-
-    return None
+    # return None
     #types of swings:
     #swinging up or down,yz changes alot, xz doesnt change much, massive dyz/dt
     #swing left or right,yz doesnt change much, xz changes alot, large dxz/dt
@@ -473,15 +523,6 @@ def getSwingDirection(XY,YZ,XZ,centers,dt):
 
 #generalTracking()
 #previously used code for figuring out best way to mask
-
-    #do some blob detection based on the mask, minimum area
-    # blobParam=cv.SimpleBlobDetector_Params()
-    # blobParam.filterByArea=True
-    # blobArea = cv.getTrackbarPos('blobArea','slider')
-    # blobParam.minArea=blobArea
-    # detector=cv.SimpleBlobDetector_create(blobParam)
-    # blobs=detector.detect(mask)
-    # blobImage = cv.drawKeypoints(mask, blobs, np.array([]), (0,0,255), cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
 #harris corner detection
     #harris corner detection onto result image

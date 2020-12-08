@@ -3,6 +3,8 @@ import numpy as np
 import math
 import pygame
 import time
+import random
+#initialize pygame, and the camera
 pygame.init()
 pygame.mixer.init()
 cap = cv.VideoCapture(0)
@@ -20,11 +22,13 @@ V=[]
 def nothing(x):
     pass
 
+#distance formula
 def distance(x0,y0,x1,y1):
     dx=x1-x0
     dy=y1-y0
     return int(math.sqrt(dx**2+dy**2))
 
+#returns how much saber is tilting forward based on it's calculated length
 def getZVector(saberVector, trueMag):
     vecSquared=trueMag**2-(saberVector[0])**2-(saberVector[1])**2
     if(vecSquared<0):
@@ -32,12 +36,14 @@ def getZVector(saberVector, trueMag):
     else:
         return math.sqrt(vecSquared)
 
+#returns angle based on saber positioning
 def get2DAngle(saberVector):
     v=np.array([1,0])
     angle=math.acos(np.dot(saberVector,v)/(np.linalg.norm(saberVector)*np.linalg.norm(v)))
     angle=math.degrees(angle)
     return (int(angle))
 
+#returns angle given an x or y and z vector
 def get3DAngle(x,y):
     u=np.array([x,y])
     v=np.array([1,0])
@@ -45,7 +51,7 @@ def get3DAngle(x,y):
     angle=math.degrees(angle)
     return (angle)
 
-#hMin,hMax,sMin,sMax,vMin,vMax=85,147,130,253,63,255
+#helper function to detect clicks
 def getValueOnClick(event,x,y,flags,hsv):
     if event == cv.EVENT_LBUTTONDOWN:
         HSVval=(hsv[y][x])
@@ -53,6 +59,7 @@ def getValueOnClick(event,x,y,flags,hsv):
         S.append(HSVval[1])
         V.append(HSVval[2])
 
+#rough calibration window by just clicking on object
 def calibrateSaberClick():
     justClicked=False
     while len(H)<4:
@@ -72,6 +79,7 @@ def calibrateSaberClick():
     cv.destroyWindow('calibration screen')
     return minVal,maxVal
 
+#slider window for fine calibration
 def calibrateSaberSlide(defaultMin,defaultMax):
     calibrated=False
     cv.namedWindow('sliders')
@@ -107,6 +115,8 @@ def calibrateSaberSlide(defaultMin,defaultMax):
     cv.destroyWindow('mask')
     
     return [hMin,sMin,vMin],[hMax,vMax,sMax]
+
+#returns standard deviation of a list
 def stDev(data):
     mean=average(data)
     tempSum=0
@@ -114,6 +124,7 @@ def stDev(data):
         tempSum+=(val-mean)**2
     return math.sqrt(tempSum/(len(data)-1))
 
+#returns average of a list
 def average(lst):
     return sum(lst)/len(lst)
 
@@ -157,6 +168,7 @@ def getMidpoint(x0,y0,x1,y1):
     cx=(x0+x1)/2
     cy=(y0+y1)/2
     return(cx,cy)
+
 def calibrateLighting():
     H=[]
     S=[]
@@ -190,6 +202,7 @@ def bombHittable(closestFrames,gridCenters):
             return x,y,True
     return 0,0,False
 
+#convert the saber into a list of 10 tuples for object hit detection
 def makeLine(x0,y0,x1,y1,resolution):
     m=(y1-y0)/(x1-x0)
     dx=(x1-x0)/resolution
@@ -255,6 +268,8 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
     white=(255,255,255)
     gray=(101,101,101)
 
+    #stuff for note slicing particle effects
+    noteParticles=[]
     while(True):
         startTime=time.time()
         _, frame = cap.read()
@@ -317,6 +332,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                     #update result with notes, and reset notes to blank
                     res=cv.add(notes,res)
                     notes=np.zeros((720,1280,3), np.uint8)
+        #draw the particle effects after a slice
 
         #checks if the closest frame contains a note
         closestFrames=levelMap[:swingThreshold]
@@ -335,9 +351,29 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         cv.putText(res,f'Map Progress:',(int(camWidth-camWidth//5),650), font, 1,white,2,cv.LINE_AA)
         progress1=(int((camWidth-camWidth//5)),int(camHeight-30))
         progress2=(int((camWidth-camWidth//15)-barWidth+(progRatio*barWidth)),int(camHeight-10))
-        #int((camWidth-camWidth//10)-barWidth+(progRatio*barWidth))
         cv.rectangle(res,progress1,progress2,gray,-1)
-        if len(contours)>0:
+        #code to draw the particles:
+        i=0
+        maxFrames=15
+        while i <len(noteParticles):
+            x,y,frames,direction=noteParticles[i]
+            
+            if frames>maxFrames:
+                noteParticles.pop(i)
+            else:
+                frames+=1
+                #draws circle effects
+                x+=20*math.cos(math.radians(direction))
+                y+=-20*math.sin(math.radians(direction))
+                for j in range(3):
+                    randX=random.randint(-10*frames,10*frames)
+                    randY=random.randint(-10*frames,10*frames)
+                    size=15
+                    cv.circle(res,(int(x+randX),int(y+randY)), size, blue,-1)
+                noteParticles[i]=x,y,frames,direction
+                i+=1
+
+        if len(contours)>0:#we see a saber in our frame
             #next 4 lines from here:# https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
             rect = cv.minAreaRect(contours[0])
             box = cv.boxPoints(rect)
@@ -345,7 +381,6 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             cv.drawContours(res,[box],0,(0,255,0),1)
 
             cx,cy=getCenter(box)
-
             #determine length of saber
             x0,y0=box[0]
             x1,y1=box[1]
@@ -392,7 +427,6 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                 bombHit=False
                 print(saberLine)
                 if distance(cx,cy,bombX,bombY)<bombRad:
-
                 # for x,y in saberLine:
                 #     if type(x)==float and type(y)==float:
                 #         if distance(x,y,bombX,bombY)<bombRad:
@@ -420,7 +454,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                     score+=100
                     combo+=1
                     pygame.mixer.Channel(1).play(hit)
-                    noteBroken=True
+                    noteParticles.append((noteX,noteY,0,direction))
                     #remove the note from the map so you can't hit it again
                     for i in range (len(levelMap)):
                         frame=levelMap[i]

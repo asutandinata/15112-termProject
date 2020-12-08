@@ -314,7 +314,6 @@ def makeBarsHorizontal(mapFrame,i, row,col):
             mapFrame[i+j]=(row,col,swingDir)
             
 def makeStream(mapFrame,i,row,col):
-    print('stream made!')
     swingDir=90
     for j in range(12):
         if j%2==0:

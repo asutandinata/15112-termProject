@@ -177,7 +177,7 @@ def drawNotes(app, canvas):
 def redrawAll(app, canvas):
     if not app.inGame:
         canvas.create_rectangle(0,0,app.width, app.height, fill='black')
-        canvas.create_text(app.width/2, 15,text=app.heading, fill='red', font='arial 26 bold')
+        canvas.create_text(app.width/2, 30,text=app.heading, fill='red', font='arial 26 bold')
         for button in app.displayButtons:
             cx=button.cx
             cy=button.cy

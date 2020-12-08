@@ -35,12 +35,8 @@ import math
 #things added to increase complexity after TP2, regarding map generation:
 
 #make the gap in between note frames more random: 
-# make the next note direction based on the previous note direction
 
-#introduce streams back and forth of ups and downs
-
-#make bomb generation look cooler(not just random)
-
+#introduce different swing patterns that could occur passively or actively!
 #passive swing patterns:
 #big swing, if a piece is straight up or down in the middle row, make another note right after in the same direction
 #dumb stream, the note right after is a swing in the oppisite direction
@@ -49,10 +45,10 @@ import math
 #"fun" pattern triggered by a random event
 #3 main options:
 #spiral clockwise and counterclockwise, create a bomb in the center frame
-#"jail bars"(up in top left followed by down in mid bottom, followd by up in top right)
+#"bars"(up in top left followed by down in mid bottom, followed by up in top right)
 #"sideways jail bars"
 #streams, rapid up and down swinging(no left or right)
-#
+
 
 
 #general map making function
@@ -177,33 +173,46 @@ def passiveFeatures(mapFrames):
                     mapFrames[i+1]=(frame[0]-1,frame[1],frame[2])
                 elif frame[2]==270 and (frame[0]==1 or frame[0]==0):
                     mapFrames[i+1]=(frame[0]+1,frame[1],frame[2])
+
 def generateFunPatterns(mapFrames):
     #each 'fun' pattern is 8 notes long
     #we search for any gaps of 8 empty notes
     i=0
+    chance=3
     while i< len(mapFrames)-12:
         gapFound=False
         for j in range(12):
             if mapFrames[i+j]!=None:
                 gapFound=True
         if gapFound:
-            n=random.randint(0,3)
-            #create one of the 3 random patterns starting at i
-            if n==0:#generate a clockwise spiral
-                startRow,startCol=random.choice([(0,1),(1,0),(1,2),(2,1)])
-                makeSpiral(mapFrames,i,startRow,startCol,'cw')
-            elif n==1:#generate a counterclockwiseSpiral
-                startRow,startCol=random.choice([(0,1),(1,0),(1,2),(2,1)])
-                makeSpiral(mapFrames,i,startRow,startCol,'ccw')
-            elif n==2:#vertical bars
-                startRow=random.choice([0,2])
-                startCol=random.choice([0,2])
-                makeBarsVertical(mapFrames,i,startRow,startCol)
-            elif n==3:#horizontal bars
-                startRow=random.choice([0,2])
-                startCol=random.choice([0,2])
-                makeBarsHorizontal(mapFrames,i,startRow,startCol)
-            i+=12
+            if random.randint(0,chance)==0:
+                n=random.randint(0,3)
+                #create one of the 3 random patterns starting at i
+                if n==0:#generate a clockwise spiral
+                    startRow,startCol=random.choice([(0,1),(1,0),(1,2),(2,1)])
+                    makeSpiral(mapFrames,i,startRow,startCol,'cw')
+                elif n==1:#generate a counterclockwiseSpiral
+                    startRow,startCol=random.choice([(0,1),(1,0),(1,2),(2,1)])
+                    makeSpiral(mapFrames,i,startRow,startCol,'ccw')
+                elif n==2:#vertical bars
+                    startRow=random.choice([0,2])
+                    startCol=random.choice([0,2])
+                    makeBarsVertical(mapFrames,i,startRow,startCol)
+                elif n==3:#horizontal bars
+                    startRow=random.choice([0,2])
+                    startCol=random.choice([0,2])
+                    makeBarsHorizontal(mapFrames,i,startRow,startCol)
+                i+=12
+            else:#skip to the next note
+                #find the position of the next note
+                j=i
+                while True:
+                    if mapFrames[j]!=None:
+                        break
+                    else:
+                        j+=1
+                i=j
+
         i+=1
     pass
                 
@@ -242,8 +251,8 @@ def makeSpiral(mapFrame,i,row,col,direction):
                     row=1
                     col=2
                 elif row==1 and col==0:
-                    col=0
-                    row=1
+                    col=1
+                    row=0
                 elif row==2 and col==1:
                     row=1
                     col=0
@@ -253,52 +262,52 @@ def makeSpiral(mapFrame,i,row,col,direction):
 def makeBarsVertical(mapFrame,i,row,col):
     if row==0:
         swingDir=90
-    else:
+    elif row==2:
         swingDir=270
     if col==0:
         dx=1
-    else:
+    elif col==2:
         dx=-1
+    mapFrame[i]==(row,col,swingDir)
     for j in range(12):
-        if j%2==1 or j>=4:
+        if j%2==1 or j>=6:
             mapFrame[i+j]=None
         else:
-            mapFrame[i+j]=(row,col,swingDir)
+            col+=dx
+            if col>2:col=2
+            elif col<0:col=0
             if row==0:
                 row=2
-            else:
-                row=0
-            if swingDir==270:
-                swindDir=90
-            else:
                 swingDir=270
-            col+=dx
+            elif row==2:
+                row=0
+                swingDir=90
+            mapFrame[i+j]=(row,col,swingDir)
 
 def makeBarsHorizontal(mapFrame,i, row,col):
     if col==0:
         swingDir=180
-    else:
+    elif col==2:
         swingDir=0
     if row==0:
         dy=1
-    else:
+    elif row==2:
         dy=-1
-    print(row,col,swingDir)
-    for j in range(12):
-        if j%2==1 or j>=4:
+    mapFrame[i]=(row,col,swingDir)
+    for j in range(1,12):
+        if j%2==1 or j>=6:
             mapFrame[i+j]=None
         else:
+            row+=dy
+            if row>2:row=2
+            elif row<0:row=0
             if col==0:
                 col=2
-            else:
+                swingDir=0
+            elif col==2:
                 col=0
-            if swingDir==180:
-                swindDir=0
-            else:
-                swingDir=180
-            print(row,col,swingDir)
+                swingDir=180 
             mapFrame[i+j]=(row,col,swingDir)
-            col+=dy
             
                 
-a=generateMap(750, 20,False,0,True)
+

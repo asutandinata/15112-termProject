@@ -428,10 +428,10 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                             levelMap[i]=None
                             i=len(levelMap)-1
                             break
-                else:
+                else:#we sliced in the wrong direction
                     pygame.mixer.Channel(1).play(missed)
                     combo=0
-            elif not inSwing and nextFrameHasNote:
+            elif not inSwing and nextFrameHasNote:#we let a note fly by
                 pygame.mixer.Channel(2).play(missed)
                 combo=0
             

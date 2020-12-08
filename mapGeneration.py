@@ -186,7 +186,7 @@ def generateFunPatterns(mapFrames):
                 gapFound=True
         if gapFound:
             if random.randint(0,chance)==0:
-                n=random.randint(0,3)
+                n=random.randint(0,4)
                 #create one of the 3 random patterns starting at i
                 if n==0:#generate a clockwise spiral
                     startRow,startCol=random.choice([(0,1),(1,0),(1,2),(2,1)])
@@ -202,6 +202,10 @@ def generateFunPatterns(mapFrames):
                     startRow=random.choice([0,2])
                     startCol=random.choice([0,2])
                     makeBarsHorizontal(mapFrames,i,startRow,startCol)
+                elif n==4:
+                    newCol=random.randint(0,2)
+                    newRow=1
+                    makeStream(mapFrames,i,newRow,newCol)
                 i+=12
             else:#skip to the next note
                 #find the position of the next note
@@ -309,5 +313,16 @@ def makeBarsHorizontal(mapFrame,i, row,col):
                 swingDir=180 
             mapFrame[i+j]=(row,col,swingDir)
             
-                
+def makeStream(mapFrame,i,row,col):
+    print('stream made!')
+    swingDir=90
+    for j in range(12):
+        if j%2==0:
+            mapFrame[i+j]=None
+        else:
+            mapFrame[i+j]=(row,col,swingDir)
+            if swingDir==90:
+                swingDir=270
+            else:
+                swingDir=90
 

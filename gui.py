@@ -126,8 +126,7 @@ def mousePressed(app, event):
                 app.inGame=True
                 
             elif button.text=='Medium':
-                #app.levelMap=mapGeneration.generateMap(250, 20,True,15)
-                app.levelMap=20*[(0,0,0),(0,1,0),(0,2,0),(1,0,0),(1,1,0),(1,2,0),(2,0,0),(2,1,0),(2,2,0)]
+                app.levelMap=mapGeneration.generateMap(750, 20,False,0,True)
                 app.noteSpeed=7
                 app.noteVisibility=20
                 app.inGame=True
@@ -177,19 +176,20 @@ def drawNotes(app, canvas):
         
 def redrawAll(app, canvas):
     if not app.inGame:
-        canvas.create_text(app.width/2, 15,text=app.heading, fill='black', font='arial 18 bold')
+        canvas.create_rectangle(0,0,app.width, app.height, fill='black')
+        canvas.create_text(app.width/2, 15,text=app.heading, fill='red', font='arial 26 bold')
         for button in app.displayButtons:
             cx=button.cx
             cy=button.cy
             width=button.width
             height=button.height
             text=button.text
-            canvas.create_rectangle(cx-width/2, cy-height/2, cx+width/2, cy+height/2,fill='yellow')
-            canvas.create_text(cx, cy, text=text, fill='black', font='arial 12 bold')
+            canvas.create_rectangle(cx-width/2, cy-height/2, cx+width/2, cy+height/2,fill='blue')
+            canvas.create_text(cx, cy, text=text, fill='white', font='arial 12 bold')
         if app.showError:
             margin=20
             canvas.create_rectangle(margin, margin, app.width-margin, app.height-margin,fill='red')
-            canvas.create_text(app.width/2, app.height/2, text=app.errorText, fill='black', font='arial 20 bold')
+            canvas.create_text(app.width/2, app.height/2, text=app.errorText, fill='white', font='arial 20 bold')
     else:
         saberTracker.generalTracking(app.levelMap, app.noteVisibility,app.lowerHSV,app.upperHSV,app.trueSaberLength)
         app.inGame=False

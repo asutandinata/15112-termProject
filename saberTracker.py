@@ -253,6 +253,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
     font = cv.FONT_HERSHEY_SIMPLEX
     blue=(255,0,0)
     white=(255,255,255)
+    gray=(101,101,101)
 
     while(True):
         startTime=time.time()
@@ -300,7 +301,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                 dy=y-camHeight/2
                 cy=int(camHeight/2+dy*sizeRatio)
                 if direction==-1:
-                    cv.circle(res,(cx,cy), int(size/2), (101,101,101),-1)
+                    cv.circle(res,(cx,cy), int(size/2), gray,-1)
                     if bombRad<size/2:
                         bombRad=size/2
                 else:
@@ -324,7 +325,18 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         levelMap=levelMap[1:]
         cv.putText(res,f'score: {score}',(10,300), font, 1,white,2,cv.LINE_AA)
         cv.putText(res,f'combo:{combo}',(10,400), font, 1,white,2,cv.LINE_AA)
-        
+
+        #code to draw progress bar
+        pos1=(int(camWidth-camWidth//5),int(camHeight-30))
+        pos2=(int(camWidth-camWidth//15),int(camHeight-10))
+        barWidth=(camWidth-camWidth//15)-(camWidth-camWidth//5)
+        cv.rectangle(res,pos1,pos2,white,2)
+        progRatio=1-(len(levelMap)/mapLength)
+        cv.putText(res,f'Map Progress:',(int(camWidth-camWidth//5),650), font, 1,white,2,cv.LINE_AA)
+        progress1=(int((camWidth-camWidth//5)),int(camHeight-30))
+        progress2=(int((camWidth-camWidth//15)-barWidth+(progRatio*barWidth)),int(camHeight-10))
+        #int((camWidth-camWidth//10)-barWidth+(progRatio*barWidth))
+        cv.rectangle(res,progress1,progress2,gray,-1)
         if len(contours)>0:
             #next 4 lines from here:# https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
             rect = cv.minAreaRect(contours[0])

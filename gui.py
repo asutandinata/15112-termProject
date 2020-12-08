@@ -33,6 +33,7 @@ def appStarted(app):
     #errors:
     app.showError=False
     app.errorText=''
+    app.showHelp=False
 
     #cv variables 
     app.lowerHSV=np.array([62,91,82])
@@ -94,6 +95,7 @@ def mousePressed(app, event):
                 app.displayButtons=app.homeButtons
                 app.heading='Welcome to cheapsaber!'
                 app.showError=False
+                app.showHelp=False
                 app.error=''
             elif button.text=='play a song':
                 app.displayButtons=app.levelButtons
@@ -106,6 +108,7 @@ def mousePressed(app, event):
                 app.heading='calibrate your saber'
             elif button.text=='help':
                 app.displayButtons=app.helpButtons
+                app.showHelp=True
                 app.heading='Help Screen'
             elif button.text=='Calibrate Lighting':
                 app.lowerHSV,app.upperHSV=saberTracker.calibrateLighting()
@@ -126,19 +129,19 @@ def mousePressed(app, event):
                 app.inGame=True
                 
             elif button.text=='Medium':
-                app.levelMap=mapGeneration.generateMap(750, 20,False,0,True)
+                app.levelMap=mapGeneration.generateMap(750, 20,False, 0,True)
                 app.noteSpeed=7
                 app.noteVisibility=20
                 app.inGame=True
                 
             elif button.text=='Hard':
-                app.levelMap=mapGeneration.generateMap(1000, 6,True,10)
+                app.levelMap=mapGeneration.generateMap(1000, 15,True,10,True)
                 app.noteSpeed=8
                 app.noteVisibility=10
                 app.inGame=True
                 
             elif button.text=='Expert':
-                app.levelMap=mapGeneration.generateMap(1250, 4,True,9)
+                app.levelMap=mapGeneration.generateMap(1250, 4,True,9,True)
                 app.noteSpeed=10
                 app.noteVisibility=20
                 app.inGame=True
@@ -190,6 +193,8 @@ def redrawAll(app, canvas):
             margin=20
             canvas.create_rectangle(margin, margin, app.width-margin, app.height-margin,fill='red')
             canvas.create_text(app.width/2, app.height/2, text=app.errorText, fill='white', font='arial 20 bold')
+        if app.showHelp:
+            canvas.create_text(app.width/2, app.height/2, text=app.helpText,fill='white',font='arial 18')
     else:
         saberTracker.generalTracking(app.levelMap, app.noteVisibility,app.lowerHSV,app.upperHSV,app.trueSaberLength)
         app.inGame=False

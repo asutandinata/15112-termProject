@@ -9,12 +9,12 @@ Things you need to play:
 A bright colored tube/long object you can swing around without breaking anything
 A wireless mouse would be helpful as well
 
-How to run:
+HOW TO BEGIN:
 ensure all files are downloaded properly, and vscode has access to your laptop or desktop camera
 Open gui.py and run it
 start by calibrating your saber before you play any levels
 
-Calibration Instructions:
+CALIBRATION INSTRUCTIONS:
 Click on "calibrate your saber"
 Click on "calibrate lighting"
 You should see a window pop up displaying what openCV sees hsv-wise.

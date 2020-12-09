@@ -52,9 +52,10 @@ import math
 
 
 #general map making function
-#on pass 1 introduce notes
-#on pass 2 introduce pssive note features
-#on pass 3 introduce fun patterns and bombs if enabled
+#on pass 1 introduce notes and map
+#on pass 2 introduce passive note features
+#on pass 3 introduce fun patterns 
+#on pass 4 introduce bombs if enabled
 def generateMap(frames,OGframeGap, bombsEnabled, bombChance=0, funPatterns=False):
     mapFrames=30*[None]
     previousFrame=(-1,-1,-1)
@@ -157,16 +158,18 @@ def generateBombs(mapFrames, bombChance):
                     mapFrames[i]=(row,col,-1)
 
 #big swing, if a piece is straight up or down in the middle row, make another note right after in the same direction
-#dumb stream, the note right after is a swing in the oppisite direction, only occurs in the middle note
+#mid stream, the note right after is a swing in the oppisite direction, only occurs in the middle note
 #passive note features will be very likely to occur as the make the game much more interesting
 def passiveFeatures(mapFrames):
-    dumbChance=1
+    midStreamChance=2
     bigSwingChance=1
     for i in range(len(mapFrames)):
         frame=mapFrames[i]
         if frame!=None:
-            if frame[1]==1 and frame[0]==1 and random.randint(0,dumbChance)==1:#there is a center note, make a dumb stream
-                mapFrames[i+1]==(0,0,frame[2]+180)
+            #there is a center note, make a mid stream
+            if frame[1]==1 and frame[0]==1 and random.randint(0,midStreamChance)==0:
+                mapFrames[i+1]==None
+                mapFrames[i+2]==(1,1,frame[2]+180)
             elif frame[0]==1 :
                 #generate a note in the same direction either above or below it, depending on direction
                 if frame[2]==90 and (frame[0]==1 or frame[0]==2):#swinging up

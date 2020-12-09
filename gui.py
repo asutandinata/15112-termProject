@@ -27,11 +27,13 @@ def appStarted(app):
     app.helpText=('''Welcome to cheapsaber:\n
                     To play, find tube like object and calibrate it using the calibrate button \n
                     For lighting calibration, click on the saber 4 times and adjust sliders as necessary \n
-                    For length calibration, hold the saber still. A grey window will pop up.\n
-                    Hold the saber still until the grey window closes. Now you're all calibrated!\n
+                    For length calibration, hold the saber still. A window will pop up showing your saber.\n
+                    Hold the saber still until the window automatically closes. Now you're all calibrated!\n
                     Then, you could start a level at a difficulty you want\n
+                    Complex patterns begin appearing in medium levels, and random bombs begin appearing in hard levels\n
                     To play, swing your saber in the direction of the arrow\n
-                    Avoid hitting bombs though,a s those will subtract 500 points from your score''')
+                    Avoid hitting bombs though,as those will subtract 500 points from your score\n
+                    Try to build up a combo!''')
 
     #errors:
     app.showError=False
@@ -41,7 +43,7 @@ def appStarted(app):
     #cv variables 
     app.lowerHSV=np.array([62,91,82])
     app.upperHSV=np.array([123,255,255])
-    app.calibrated=True
+    app.calibrated=False
     app.trueSaberLength=200
 
     #map variables:
@@ -105,7 +107,7 @@ def mousePressed(app, event):
                 app.heading='Select a level'
                 if(not app.calibrated):
                     app.showError=True
-                    app.errorText='You have not calibrated!\n Please go back and calibrate your saber'
+                    app.errorText='You have not calibrated!\n Please go back by clicking in the top left corner \n and calibrate your saber'
             elif button.text=='Calibrate your sabers':
                 app.displayButtons=app.calibrateButtons
                 app.heading='calibrate your saber'

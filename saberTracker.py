@@ -144,13 +144,12 @@ def calibrateLength(minVal, maxVal):
     white=(255,255,255)
     while(not sizeCalibrated):
         if sizeCalibrated:
-            print('exiting!')
             break
         _, frame = cap.read()
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         hsv=cv.medianBlur(hsv,11)
         mask = cv.inRange(hsv, minVal, maxVal)
-        res = cv.bitwise_and(frame,frame, mask= mask)
+        res = cv.bitwise_and(frame,frame, mask= mask)#from https://docs.opencv.org/master/d0/d86/tutorial_py_image_arithmetics.html
         frame=cv.flip(frame,1)
         mask=cv.flip(mask,1)
         res=cv.flip(res,1)
@@ -304,10 +303,9 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         
         kernel = np.ones((13,13),np.uint8)
         mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
-        # mask=cv.dilate(mask,kernel, iterations=1)
         notes=np.zeros((720,1280,3), np.uint8)
         #flip each image vertically
-        res = cv.bitwise_and(frame,frame, mask= mask)#overlay boolean mask onto frame
+        res = cv.bitwise_and(frame,frame, mask= mask)#overlay boolean mask onto frame, from https://docs.opencv.org/master/d0/d86/tutorial_py_image_arithmetics.html
         frame=cv.flip(frame, 1)
         mask = cv.flip(mask, 1)
         res=cv.flip(res,1)
@@ -384,7 +382,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             if frames>maxFrames:
                 noteParticles.pop(i)
             else:
-                print(v)
+                
                 frames+=1
                 #draws circle effects
                 if v>500:v=500
@@ -454,7 +452,6 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
 
             if inSwing and bombNear:#we swung while a bomb is near
                 bombHit=False
-                print(saberLine)
                 if distance(cx,cy,bombX,bombY)<bombRad:
                 # for x,y in saberLine:
                 #     if type(x)==float and type(y)==float:
@@ -536,8 +533,8 @@ def isSwinging(centers):
     return True
 
 def isSwing3D(XY,YZ,XZ,centers,dt):
-    #THE CHANGE IN SABER CENTER INDICATES A SWING HAS BEGUN
-    #THE ANGLES ARE THEN USED TO CHECK IF A SWING IS VALID
+    #Change in center position indicates saber is moving in isSwinging
+    #derivative of angles is then checked to make sure we are actually swinging and not translating
     #although it could all be done through looking at centers, analyzing the saber's angles will ensure a swing is proper and not just a translation
 
     #shorten to the most recent values for the swing
@@ -558,8 +555,8 @@ def isSwing3D(XY,YZ,XZ,centers,dt):
     dx=x2-x1
     dy=y2-y1
     dl=l2-l1
-    XYangleError=8#maximum error an angle(XY) could have to consider the swing to be valid
-    minMovement=10
+
+    minMovement=8
     minSpread=3
     
     #using each angle's derivative wrt time, and the standard deviations of the past few 'minTime' values, we find the swing direction

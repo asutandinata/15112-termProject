@@ -141,34 +141,49 @@ def calibrateLength(minVal, maxVal):
     error=10
     font=cv.FONT_HERSHEY_SIMPLEX
     sizeCalibrated=False
+    white=(255,255,255)
     while(not sizeCalibrated):
+        if sizeCalibrated:
+            print('exiting!')
+            break
         _, frame = cap.read()
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         hsv=cv.medianBlur(hsv,11)
         mask = cv.inRange(hsv, minVal, maxVal)
+        res = cv.bitwise_and(frame,frame, mask= mask)
+        frame=cv.flip(frame,1)
+        mask=cv.flip(mask,1)
+        res=cv.flip(res,1)
         #next 2 lines based on guide on morphological transform: https://docs.opencv.org/master/d9/d61/tutorial_py_morphological_ops.html
         kernel = np.ones((13,13),np.uint8)
         mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
         contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-        cv.imshow('mask', mask)
         if len(contours)>0:# a contour is detected
             #contour detection next 4 lines from, https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
             rect = cv.minAreaRect(contours[0])
             box = cv.boxPoints(rect)
             box = np.int0(box)
-            cv.drawContours(mask,[box],0,(0,0,255),2)
+            cv.drawContours(res,[box],0,(0,0,255),2)
             x0,y0=box[0]
             x1,y1=box[1]
             x2,y2=box[2]
             saberLength=max(distance(x0,y0,x1,y1),distance(x1,y1,x2,y2))
             saberSizes.append(saberLength)
-        if(len(saberSizes)>25):
+            cv.putText(res,f'Try to keep this number as stable as possible: ->{saberLength}',(0,30), font, 1,white,2,cv.LINE_AA)
+            cv.putText(res,'Window will automatically close when calibrated',(0,70), font, 1,white,2,cv.LINE_AA)
+        cv.imshow('res', res)
+        if cv.waitKey(20) & 0xFF == 27:#waitkey usage from https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_image_display/py_image_display.html
+            break
+        
+        elif(len(saberSizes)>25):
             dataError=stDev(saberSizes)
             if(dataError<error):
-                sizeCalibrated=True
+                sizeCalibrated=True 
+                cv.destroyWindow('res')
+                return average(saberSizes)
             else:
                 saberSizes=[]
-    cv.destroyWindow('mask')
+    cv.destroyWindow('res')
     return average(saberSizes)
 
 def getMidpoint(x0,y0,x1,y1):

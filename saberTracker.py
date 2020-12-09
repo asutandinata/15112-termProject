@@ -68,7 +68,12 @@ def calibrateSaberClick():
         hsv=cv.medianBlur(hsv,11)
         frame=cv.flip(frame, 1)
         hsv=cv.flip(hsv,1)
+        
         cv.setMouseCallback('calibration screen',getValueOnClick,hsv)
+        
+        font=cv.FONT_HERSHEY_SIMPLEX
+        
+        cv.putText(hsv, f'Click on the saber {4-len(H)} more times',(0,30),font, 1,(255,255,255),2,cv.LINE_AA)
         cv.imshow('calibration screen',hsv)
         if cv.waitKey(20) & 0xFF == 27:#waitkey usage from https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_image_display/py_image_display.html
             break
@@ -108,6 +113,9 @@ def calibrateSaberSlide(defaultMin,defaultMax):
         mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
         res = cv.bitwise_and(frame,frame, mask= mask)
         mask = cv.flip(mask, 1)
+        font=cv.FONT_HERSHEY_SIMPLEX
+        cv.putText(mask, 'adjust sliders until only saber is consistently visible',(0,30),font, 1,(255,255,255),2,cv.LINE_AA)
+        cv.putText(mask,'hit escape once you are satisfied',(0,70), font, 1,(255,255,255),2,cv.LINE_AA)
         cv.imshow('mask',mask)
         if cv.waitKey(20) & 0xFF == 27:#waitkey usage from https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_image_display/py_image_display.html
             break
@@ -141,7 +149,6 @@ def calibrateLength(minVal, maxVal):
         #next 2 lines based on guide on morphological transform: https://docs.opencv.org/master/d9/d61/tutorial_py_morphological_ops.html
         kernel = np.ones((13,13),np.uint8)
         mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
-        
         contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         cv.imshow('mask', mask)
         if len(contours)>0:# a contour is detected
@@ -332,7 +339,6 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                     #update result with notes, and reset notes to blank
                     res=cv.add(notes,res)
                     notes=np.zeros((720,1280,3), np.uint8)
-        #draw the particle effects after a slice
 
         #checks if the closest frame contains a note
         closestFrames=levelMap[:swingThreshold]
@@ -352,25 +358,33 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
         progress1=(int((camWidth-camWidth//5)),int(camHeight-30))
         progress2=(int((camWidth-camWidth//15)-barWidth+(progRatio*barWidth)),int(camHeight-10))
         cv.rectangle(res,progress1,progress2,gray,-1)
-        #code to draw the particles:
+
+        #code to draw the particle effects:
         i=0
         maxFrames=15
+        decel=20
         while i <len(noteParticles):
-            x,y,frames,direction=noteParticles[i]
+            x,y,frames,direction,v=noteParticles[i]
             
             if frames>maxFrames:
                 noteParticles.pop(i)
             else:
+                print(v)
                 frames+=1
                 #draws circle effects
-                x+=20*math.cos(math.radians(direction))
-                y+=-20*math.sin(math.radians(direction))
+                if v>500:v=500
+                x+=v/decel*math.cos(math.radians(direction))
+                y+=-v/decel*math.sin(math.radians(direction))
+                #decelerate a bit:
+                if v>decel:
+                    v-=decel
                 for j in range(3):
-                    randX=random.randint(-10*frames,10*frames)
-                    randY=random.randint(-10*frames,10*frames)
+                    #more spread as particles get 'older'
+                    randX=random.randint(-5*frames,5*frames)
+                    randY=random.randint(-5*frames,5*frames)
                     size=15
                     cv.circle(res,(int(x+randX),int(y+randY)), size, blue,-1)
-                noteParticles[i]=x,y,frames,direction
+                noteParticles[i]=x,y,frames,direction,v
                 i+=1
 
         if len(contours)>0:#we see a saber in our frame
@@ -411,7 +425,7 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             XY.append(xyAngle)
             YZ.append(yzAngle)
             XZ.append(xzAngle)
-            cv.putText(mask,f'{xyAngle}',(10,300), font, 1,white,2,cv.LINE_AA)
+            #cv.putText(mask,f'{xyAngle}',(10,300), font, 1,white,2,cv.LINE_AA)
             
             #check if we have hit a note
             if len(levelMap)!=0 and ((levelMap[0]==None) or (levelMap[0][2]==-1)):
@@ -454,7 +468,11 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
                     score+=100
                     combo+=1
                     pygame.mixer.Channel(1).play(hit)
-                    noteParticles.append((noteX,noteY,0,direction))
+                    
+                    firstPos=centers[-1]
+                    secPos=centers [-2]
+                    dv=distance(firstPos[0],secPos[0],firstPos[1],secPos[1])
+                    noteParticles.append((noteX,noteY,0,direction,dv))
                     #remove the note from the map so you can't hit it again
                     for i in range (len(levelMap)):
                         frame=levelMap[i]
@@ -473,16 +491,16 @@ def generalTracking(levelMap,noteVisibility,lowerHSV=lower_blue, upperHSV=upper_
             #print(cx,cy)
             #print(f'pitch: {yzAngle}, yaw: {xzAngle}, plane angle: {xyAngle}')
             #cv.putText(res,f'dx: {cx-cxPrev}, dy: {cy-cyPrev}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
-            #cv.putText(res,f'pitch: {yzAngle}, yaw: {xzAngle}, roll:{xyAngle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
+            cv.putText(mask,f'pitch: {yzAngle}, yaw: {xzAngle}, roll:{xyAngle}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
             #cv.putText(res,f'{saberVector}',(10,300), font, 1,(255,255,255),2,cv.LINE_AA)
             cxPrev=cx
             cyPrev=cy
             startTime=time.time()
         
         
-        cv.imshow('frame',frame) 
-        cv.imshow('mask',mask)
-        cv.imshow('result', res)
+        cv.imshow('camera',frame) 
+        #cv.imshow('mask',mask)
+        cv.imshow('gameScreen', res)
 
         if cv.waitKey(5) & 0xFF == 27:#waitkey usage from https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_image_display/py_image_display.html
             break
@@ -535,50 +553,34 @@ def isSwing3D(XY,YZ,XZ,centers,dt):
         return True
     else:
         return False
-    # if(xySpread<XYangleError) and (abs(dl)>10) and (dYZdt>5 or  dXZdt>5):
-    #     #print(dx,dy)
-    #     #print(yzSpread,xzSpread, dYZdt,dXZdt)
-    #     if (dYZdt>10 and xzSpread<10) or (abs(dy)>15 and abs(dx)<12):
-    #         if(dy<0):
-    #             return'swinging up'
-    #         else:
-    #             return 'swinging down'
-    #     elif (dXZdt>10 and dYZdt<10) or (abs(dx)>15 and abs(dy)<12):
-    #         if dx>0:
-    #             return 'swinging right'
-    #         else:
-    #             return 'swinging left'
-    #     elif abs(abs(dx)-abs(dy))<30 and abs(dx)>6 and abs(dy)>6:
-    #         if dx>0 and dy<0:
-    #             return 'swinging up right'
-    #         elif dx>0 and dy<0:
-    #             return 'swinging up right'
-    #         elif dx<0 and dy>0:
-    #             return 'swinging down left'
-    #         elif dx<0 and dy>0:
-    #             return 'swinging down left'
-
-    # return None
-    #types of swings:
-    #swinging up or down,yz changes alot, xz doesnt change much, massive dyz/dt
-    #swing left or right,yz doesnt change much, xz changes alot, large dxz/dt
-    #swing Up right(NE), yz changes alot, xz changes alot
-    #swing Up left(NW), 
-    #swing down right(SE)
-    #swing down left(SW)
 
     pass
+def debugScreen(lowerHSV=lower_blue, upperHSV=upper_blue, trueSaberLength=0):
+    while(True):
+        font = cv.FONT_HERSHEY_SIMPLEX
+        _, frame = cap.read()
+        
+        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        hsv=cv.medianBlur(hsv,11)
+        mask = cv.inRange(hsv, lowerHSV, upperHSV)
+        res = cv.bitwise_and(frame,frame, mask= mask)
+        frame=cv.flip(frame,1)
+        mask=cv.flip(mask,1)
+        res=cv.flip(res,1)
+        kernel = np.ones((13,13),np.uint8)
+        mask=cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
+        
+        
+        contours, hierarchy = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        if len(contours)>0:
+            #next 4 lines from here:# https://docs.opencv.org/3.4/dd/d49/tutorial_py_contour_features.html
+            rect = cv.minAreaRect(contours[0])
+            box = cv.boxPoints(rect)
+            box = np.int0(box)
+            cv.drawContours(res,[box],0,(0,255,0),1)
+        cv.putText(res,'hit escape once you are finished testing',(10,50), font, 1,(255,255,255),2,cv.LINE_AA)
+        cv.imshow('result',res)
+        if cv.waitKey(5) & 0xFF == 27:#waitkey usage from https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_image_display/py_image_display.html
+                break
+    cv.destroyAllWindows()
 
-#generalTracking()
-#previously used code for figuring out best way to mask
-
-#harris corner detection
-    #harris corner detection onto result image
-    # greyRes=cv.cvtColor(res,cv.COLOR_BGR2GRAY)
-    # greyRes=np.float32(greyRes)
-    # dst = cv.cornerHarris(mask,4,3,0.01)#https://docs.opencv.org/master/dd/d1a/group__imgproc__feature.html#gac1fc3598018010880e370e2f709b4345
-    # dst = cv.dilate(dst,None)
-    # res[dst>0.01*dst.max()]=[0,0,0]
-
-#edge detection
-    #edges=cv.Canny(mask,255,255)

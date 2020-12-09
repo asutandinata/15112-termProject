@@ -1,7 +1,37 @@
+Welcome: this game is copy of the popular vr game "beatsaber", but only using computer hardware you already have and items you can find around the house. 
+To play this game,
+
 Modules to install:
 opencv(cv2)
+numpy
+pygame
+
+Things you need to play:
+A bright colored tube/long object you can swing around without breaking anything
+A wireless mouse would be helpful as well
 
 How to run:
 ensure all files are downloaded properly, and vscode has access to your laptop or desktop camera
 Open gui.py and run it
+start by calibrating your saber before you play any levels
+
+Calibration Instructions:
+Click on "calibrate your saber"
+Click on "calibrate lighting"
+You should see a window pop up displaying what openCV sees hsv-wise.
+Moving your saber around the room, click on it four times.
+Then adjust the sliders. Start by moving the minimum values before adjusting the max values
+hit escape once you are satisfied
+Then,while standing where you plan on playing, hold the saber straight up and hit calibrate length. Keep holding until you see the grey window close automatically.
+
+You can use the debug button to test your calibration settings to see if it was successful
+
+You can now hit back, and start playing a game on a selected level.
+
+TROUBLESHOOTING:
+If you find that your swing is not being detected, try swinging a bit more(not faster). The algorithm looks into how big your swing is rather than speed
+
+Note for calibration: the camera is extremely sensitive, test in a well lit room, and avoid wearing clothes that are of similar colors to your saber
+
+If you find that you are having tracking issues, please recalibrate or try wearing a different shirt(this made a very big difference for me)
 

@@ -26,6 +26,9 @@ def appStarted(app):
     app.heading='Welcome to cheapsaber!'
     app.helpText=('''Welcome to cheapsaber:\n
                     To play, find tube like object and calibrate it using the calibrate button \n
+                    For lighting calibration, click on the saber 4 times and adjust sliders as necessary \n
+                    For length calibration, hold the saber still. A grey window will pop up.\n
+                    Hold the saber still until the grey window closes. Now you're all calibrated!\n
                     Then, you could start a level at a difficulty you want\n
                     To play, swing your saber in the direction of the arrow\n
                     Avoid hitting bombs though,a s those will subtract 500 points from your score''')
@@ -119,7 +122,7 @@ def mousePressed(app, event):
 
             elif button.text=='Debug':
                 if app.calibrated:
-                    saberTracker.generalTracking(app.lowerHSV, app.upperHSV, app.trueSaberLength)
+                    saberTracker.debugScreen(app.lowerHSV, app.upperHSV, app.trueSaberLength)
                 else:
                     pass
             elif button.text=='Easy':
